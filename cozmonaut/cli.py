@@ -13,19 +13,18 @@ from . import __version__
 DOCUMENTATION = """cozmonaut
 
 Usage:
-  cozmonaut [--delete-friend <num>] [--list-friends]
+  cozmonaut --delete-friend <id>
+  cozmonaut --list-friends
+  cozmonaut --run <num>
   cozmonaut (-h | --help)
   cozmonaut --version
 
 Options:
-  --delete-friend <num>             Delete friend by their number.
+  --delete-friend <id>              Delete friend by their ID.
   --list-friends                    List all friends made.
+  --run <num>                       Run program with <num> Cozmos.
   -h --help                         Show this information.
   --version                         Show version information.
-
-Help:
-  If you supply both --delete-friend and --list-friends, the former will be
-  processed first, and the deleted friend will not be listed by the latter.
 """
 
 
@@ -41,4 +40,9 @@ def main():
     # If --list-friends was supplied
     if options['--list-friends']:
         print('Listing friends...')
+        print('Not implemented!')
+
+    # If --run was supplied
+    if options['--run']:
+        print('Running program with ' + options['--run'] + ' Cozmos')
         print('Not implemented!')
