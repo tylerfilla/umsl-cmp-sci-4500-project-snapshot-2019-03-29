@@ -12,10 +12,14 @@
 
 namespace py = pybind11;
 
-using FaceCallback = std::function<void()>;
+using OnFaceShowCb = std::function<void(int fid, int x, int y, int width, int height)>;
+using OnFaceHideCb = std::function<void(int fid, int x, int y, int width, int height)>;
+using OnFaceMoveCb = std::function<void(int fid, int x, int y, int width, int height)>;
 
 class FaceRecognizer {
-  std::vector<FaceCallback> m_callbacks;
+  std::vector<OnFaceShowCb> m_cbs_face_show;
+  std::vector<OnFaceHideCb> m_cbs_face_hide;
+  std::vector<OnFaceMoveCb> m_cbs_face_move;
 
 public:
   FaceRecognizer() = default;
@@ -26,41 +30,41 @@ public:
 
   ~FaceRecognizer() = default;
 
-  void listen(FaceCallback cb);
+  void on_face_show(OnFaceShowCb cb);
+
+  void on_face_hide(OnFaceHideCb cb);
+
+  void on_face_move(OnFaceMoveCb cb);
 
   void poll();
 };
 
-void FaceRecognizer::listen(FaceCallback cb) {
-  m_callbacks.push_back(cb);
+void FaceRecognizer::on_face_show(OnFaceShowCb cb) {
+  m_cbs_face_show.push_back(cb);
+}
+
+void FaceRecognizer::on_face_hide(OnFaceHideCb cb) {
+  m_cbs_face_hide.push_back(cb);
+}
+
+void FaceRecognizer::on_face_move(OnFaceMoveCb cb) {
+  m_cbs_face_move.push_back(cb);
 }
 
 void FaceRecognizer::poll() {
-  // FIXME
-  for (auto&& cb : m_callbacks) {
-    cb();
+  for (auto&& cb : m_cbs_face_show) {
+    cb(1, 2, 3, 4, 5);
+  }
+  for (auto&& cb : m_cbs_face_hide) {
+    cb(6, 7, 8, 9, 0);
   }
 }
 
 PYBIND11_MODULE(facelib, m) {
   py::class_<FaceRecognizer>(m, "FaceRecognizer")
     .def(py::init<>())
-    .def("listen", &FaceRecognizer::listen)
+    .def("on_face_show", &FaceRecognizer::on_face_show)
+    .def("on_face_hide", &FaceRecognizer::on_face_hide)
+    .def("on_face_move", &FaceRecognizer::on_face_move)
     .def("poll", &FaceRecognizer::poll);
 }
-
-/*
-struct facelib {
-    facelib(const std::string &name) : name(name) { }
-    void setName(const std::string &name_) { name = name_; }
-    const std::string &getName() const { return name; }
-
-    std::string name;
-};
-
-PYBIND11_MODULE(facelib, m) {
-    py::class_<facelib>(m, "facelib")
-        .def(py::init<const std::string &>())
-        .def("setName", &facelib::setName)
-        .def("getName", &facelib::getName);
-}*/

@@ -5,28 +5,19 @@
 #
 
 import asyncio
+import facelib
 
 import cozmo
 
-import facelib
-
+from functools import partial
 
 class TaskRun:
     """
     A task to run the Cozmo program.
     """
 
-    @staticmethod
-    def fun():
-        print('called')
-
     def __init__(self, num_cozmos):
         self.num_cozmos = num_cozmos
-
-        # Set up face recognizer
-        self.face_recognizer = facelib.FaceRecognizer()
-        self.face_recognizer.listen(self.fun)
-        self.face_recognizer.poll()
 
     def run(self):
         # Get an event loop
@@ -55,8 +46,28 @@ class TaskRun:
         # Wait for the robot to be ready, and then get it
         robot: cozmo.robot.Robot = await conn.wait_for_robot()
 
-        # TODO
-        await robot.say_text('hello world').wait_for_completed()
+        # Make a face recognizer for this robot
+        face_recognizer = facelib.FaceRecognizer()
+        face_recognizer.on_face_show(partial(TaskRun._robot_on_face_show, robot))
+        face_recognizer.on_face_hide(partial(TaskRun._robot_on_face_hide, robot))
+        face_recognizer.on_face_move(partial(TaskRun._robot_on_face_move, robot))
+
+        face_recognizer.poll()
+
+        while True:
+            face_recognizer.poll()
+
+    @staticmethod
+    def _robot_on_face_show(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
+        print(f'face {fid} show: {x} {y} {width} {height}')
+
+    @staticmethod
+    def _robot_on_face_hide(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
+        print(f'face {fid} hide: {x} {y} {width} {height}')
+
+    @staticmethod
+    def _robot_on_face_move(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
+        print(f'face {fid} move: {x} {y} {width} {height}')
 
 
 # Make Cozmo stay on the charger when we connect
