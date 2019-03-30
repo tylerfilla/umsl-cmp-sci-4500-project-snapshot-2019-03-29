@@ -39,19 +39,32 @@ setup(
     license=None,  # TODO: Add our license name here
     classifiers=[
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5'
+        'Programming Language :: Python :: 3.5',
     ],
     packages=find_packages(
-        exclude=['docs', 'tests'],
+        exclude=[
+            'docs',
+            'tests',
+        ],
     ),
-    install_requires=['docopt'],
+    install_requires=[
+        'docopt',
+        'numpy',
+        'pillow',
+    ],
     extras_require={
-        'test': ['coverage', 'pytest', 'pytest-cov'],
+        'test': [
+            'coverage',
+            'pytest',
+            'pytest-cov',
+        ],
     },
     entry_points={
         'console_scripts': [
             'cozmonaut=cozmonaut.cli:main',
         ],
     },
-    cmdclass={'test': CmdTest},
+    cmdclass={
+        'test': CmdTest,
+    },
 )
