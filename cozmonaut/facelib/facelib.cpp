@@ -4,63 +4,63 @@
  * InsertLicenseText
  */
 
-#include <Python.h>
+#include <functional>
+#include <vector>
 
-struct module_state {
-  PyObject* error;
+#include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
+using FaceCallback = std::function<void()>;
+
+class FaceRecognizer {
+  std::vector<FaceCallback> m_callbacks;
+
+public:
+  FaceRecognizer() = default;
+
+  FaceRecognizer(const FaceRecognizer& rhs) = delete;
+
+  FaceRecognizer(FaceRecognizer&& rhs) noexcept = delete;
+
+  ~FaceRecognizer() = default;
+
+  void listen(FaceCallback cb);
+
+  void poll();
 };
 
-static PyObject* error_out(PyObject* module) {
-  auto state = static_cast<module_state*>(PyModule_GetState(module));
-  PyErr_SetString(state->error, "something bad happened");
-  return nullptr;
+void FaceRecognizer::listen(FaceCallback cb) {
+  m_callbacks.push_back(cb);
 }
 
-static PyMethodDef facelib_methods[] = {
-  {"error_out", (PyCFunction) error_out, METH_NOARGS, nullptr},
-  {nullptr, nullptr},
-};
-
-static int facelib_traverse(PyObject* module, visitproc visit, void* arg) {
-  auto state = static_cast<module_state*>(PyModule_GetState(module));
-  Py_VISIT(state->error);
-  return 0;
-}
-
-static int facelib_clear(PyObject* module) {
-  auto state = static_cast<module_state*>(PyModule_GetState(module));
-  Py_CLEAR(state->error);
-  return 0;
-}
-
-static struct PyModuleDef moduledef = {
-  PyModuleDef_HEAD_INIT,
-  "facelib",
-  nullptr,
-  sizeof(struct module_state),
-  facelib_methods,
-  nullptr,
-  facelib_traverse,
-  facelib_clear,
-  nullptr,
-};
-
-PyMODINIT_FUNC
-PyInit_facelib() {
-  auto module = PyModule_Create(&moduledef);
-
-  if (!module) {
-    return nullptr;
+void FaceRecognizer::poll() {
+  // FIXME
+  for (auto&& cb : m_callbacks) {
+    cb();
   }
-
-  auto state = static_cast<module_state*>(PyModule_GetState(module));
-
-  state->error = PyErr_NewException("facelib.Error", nullptr, nullptr);
-
-  if (!state->error) {
-    Py_DECREF(module);
-    return nullptr;
-  }
-
-  return module;
 }
+
+PYBIND11_MODULE(facelib, m) {
+  py::class_<FaceRecognizer>(m, "FaceRecognizer")
+    .def(py::init<>())
+    .def("listen", &FaceRecognizer::listen)
+    .def("poll", &FaceRecognizer::poll);
+}
+
+/*
+struct facelib {
+    facelib(const std::string &name) : name(name) { }
+    void setName(const std::string &name_) { name = name_; }
+    const std::string &getName() const { return name; }
+
+    std::string name;
+};
+
+PYBIND11_MODULE(facelib, m) {
+    py::class_<facelib>(m, "facelib")
+        .def(py::init<const std::string &>())
+        .def("setName", &facelib::setName)
+        .def("getName", &facelib::getName);
+}*/

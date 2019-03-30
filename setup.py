@@ -53,6 +53,10 @@ setup(
             sources=[
                 'cozmonaut/facelib/facelib.cpp',
             ],
+            include_dirs=[
+                'third_party/pybind11/include',
+                'third_party/spdyface/include',
+            ],
         ),
     ],
     install_requires=[

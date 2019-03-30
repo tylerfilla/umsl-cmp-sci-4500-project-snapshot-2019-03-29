@@ -8,14 +8,25 @@ import asyncio
 
 import cozmo
 
+import facelib
+
 
 class TaskRun:
     """
     A task to run the Cozmo program.
     """
 
+    @staticmethod
+    def fun():
+        print('called')
+
     def __init__(self, num_cozmos):
         self.num_cozmos = num_cozmos
+
+        # Set up face recognizer
+        self.face_recognizer = facelib.FaceRecognizer()
+        self.face_recognizer.listen(self.fun)
+        self.face_recognizer.poll()
 
     def run(self):
         # Get an event loop
