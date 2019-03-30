@@ -93,17 +93,20 @@ class TaskRun:
         # noinspection PyUnresolvedReferences
         robot.our_stowaway_face_recognizer.submit_frame(frame_bytes, frame_width, frame_height)
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
-    def _robot_on_face_show(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
-        print(f'face {fid} show: {x} {y} {width} {height}')
+    def _robot_on_face_show(robot: cozmo.robot.Robot, evt: facelib.FaceEvent) -> None:
+        print(f'face {evt.fid} show: {evt.x} {evt.y} {evt.width} {evt.height}')
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
-    def _robot_on_face_hide(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
-        print(f'face {fid} hide: {x} {y} {width} {height}')
+    def _robot_on_face_hide(robot: cozmo.robot.Robot, evt: facelib.FaceEvent) -> None:
+        print(f'face {evt.fid} hide: {evt.x} {evt.y} {evt.width} {evt.height}')
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
-    def _robot_on_face_move(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
-        print(f'face {fid} move: {x} {y} {width} {height}')
+    def _robot_on_face_move(robot: cozmo.robot.Robot, evt: facelib.FaceEvent) -> None:
+        print(f'face {evt.fid} move: {evt.x} {evt.y} {evt.width} {evt.height}')
 
 
 # Make Cozmo stay on the charger when we connect
