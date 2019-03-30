@@ -6,10 +6,11 @@
 
 import asyncio
 import facelib
+import functools
 
+import PIL
 import cozmo
 
-from functools import partial
 
 class TaskRun:
     """
@@ -46,16 +47,51 @@ class TaskRun:
         # Wait for the robot to be ready, and then get it
         robot: cozmo.robot.Robot = await conn.wait_for_robot()
 
-        # Make a face recognizer for this robot
+        # Enable color imaging on the robot
+        robot.camera.color_image_enabled = True
+        robot.camera.image_stream_enabled = True
+
+        # Listen for incoming camera frames
+        robot.add_event_handler(cozmo.camera.EvtNewRawCameraImage,
+                                functools.partial(TaskRun._robot_on_new_raw_camera_image, robot))
+
+        # Make a face recognizer for this robot (see facelib.cpp for impl)
+        # noinspection PyUnresolvedReferences
         face_recognizer = facelib.FaceRecognizer()
-        face_recognizer.on_face_show(partial(TaskRun._robot_on_face_show, robot))
-        face_recognizer.on_face_hide(partial(TaskRun._robot_on_face_hide, robot))
-        face_recognizer.on_face_move(partial(TaskRun._robot_on_face_move, robot))
+        face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show, robot))
+        face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide, robot))
+        face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move, robot))
+        robot.our_stowaway_face_recognizer = face_recognizer
 
-        face_recognizer.poll()
-
+        # Main robot loop
         while True:
+            # Poll the face recognizer
             face_recognizer.poll()
+
+            # Sleep for a bit
+            await asyncio.sleep(0.1)
+
+    @staticmethod
+    def _robot_on_new_raw_camera_image(robot: cozmo.robot.Robot, evt: cozmo.camera.EvtNewRawCameraImage, **kw):
+        # Get the new frame
+        frame: PIL.Image.Image = evt.image
+
+        # Get frame bounding box
+        # This is a tuple like follows: (left, top, right, bottom)
+        # We'll use it to compute the frame's width and height
+        frame_bbox = frame.getbbox()
+
+        # Useful frame info
+        # This includes its raw image content and its dimensions
+        frame_bytes = frame.tobytes()
+        frame_width = frame_bbox[2] - frame_bbox[0]
+        frame_height = frame_bbox[3] - frame_bbox[1]
+
+        # Dump the frame to the face recognizer
+        # This will return pretty much immediately, as the facelib C++ code is multithreaded
+        # This asynchronous behavior allows the Cozmo SDK event loop to keep chugging away without stopping for faces
+        # noinspection PyUnresolvedReferences
+        robot.our_stowaway_face_recognizer.submit_frame(frame_bytes, frame_width, frame_height)
 
     @staticmethod
     def _robot_on_face_show(robot: cozmo.robot.Robot, fid: int, x: int, y: int, width: int, height: int) -> None:
