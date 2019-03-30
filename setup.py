@@ -8,7 +8,7 @@
 
 import subprocess
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, Extension, find_packages, setup
 
 from cozmonaut import __version__
 
@@ -47,6 +47,14 @@ setup(
             'tests',
         ],
     ),
+    ext_modules=[
+        Extension(
+            'facelib',
+            sources=[
+                'cozmonaut/facelib/facelib.cpp',
+            ],
+        ),
+    ],
     install_requires=[
         'docopt',
         'numpy',
