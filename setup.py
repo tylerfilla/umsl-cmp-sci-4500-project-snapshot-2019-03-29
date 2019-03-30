@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-"""
-InsertProjectName
-Copyright (c) 2019 The InsertProjectName Contributors
-InsertLicenseText
-"""
+#
+# InsertProjectName
+# Copyright (c) 2019 The InsertProjectName Contributors
+# InsertLicenseText
+#
 
 import subprocess
 

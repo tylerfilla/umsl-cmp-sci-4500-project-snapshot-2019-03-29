@@ -1,20 +1,13 @@
-"""
-InsertProjectName
-Copyright (c) 2019 The InsertProjectName Contributors
-InsertLicenseText
-"""
+#
+# InsertProjectName
+# Copyright (c) 2019 The InsertProjectName Contributors
+# InsertLicenseText
+#
 
-from docopt import docopt
-
-from . import __version__
-
-# Command-line documentation
-# docopt will parse this into the CLI options
-DOCUMENTATION = """cozmonaut
+"""cozmonaut
 
 Usage:
-  cozmonaut --delete-friend <id>
-  cozmonaut --list-friends
+  cozmonaut --delete-friend <id> | --list-friends
   cozmonaut --run <num>
   cozmonaut (-h | --help)
   cozmonaut --version
@@ -22,27 +15,29 @@ Usage:
 Options:
   --delete-friend <id>              Delete friend by their ID.
   --list-friends                    List all friends made.
-  --run <num>                       Run program with <num> Cozmos.
+  --run <num>                       Run program with num Cozmos.
   -h --help                         Show this information.
   --version                         Show version information.
+
 """
+
+from docopt import docopt
+
+from cozmonaut.tasks import TaskDeleteFriend, TaskListFriends, TaskRun
+from . import __version__
 
 
 def main():
-    # Parse command-line options
-    options = docopt(DOCUMENTATION, version='cozmonaut ' + __version__)
+    options = docopt(__doc__, version='cozmonaut ' + __version__)
 
-    # If --delete-friend was supplied
     if options['--delete-friend']:
-        print('Deleting friend ' + options['--delete-friend'])
-        print('Not implemented!')
+        task = TaskDeleteFriend(int(options['--delete-friend']))
+        task.run()
 
-    # If --list-friends was supplied
     if options['--list-friends']:
-        print('Listing friends...')
-        print('Not implemented!')
+        task = TaskListFriends()
+        task.run()
 
-    # If --run was supplied
     if options['--run']:
-        print('Running program with ' + options['--run'] + ' Cozmos')
-        print('Not implemented!')
+        task = TaskRun(int(options['--run']))
+        task.run()

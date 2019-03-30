@@ -1,8 +1,8 @@
-"""
-InsertProjectName
-Copyright (c) 2019 The InsertProjectName Contributors
-InsertLicenseText
-"""
+#
+# InsertProjectName
+# Copyright (c) 2019 The InsertProjectName Contributors
+# InsertLicenseText
+#
 
 from .cli import main
 
