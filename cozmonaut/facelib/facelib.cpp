@@ -53,6 +53,9 @@ class Registry {
   /** The face detector. */
   dlib::frontal_face_detector m_face_detector;
 
+  /** The face pose predictor. */
+  dlib::shape_predictor m_face_pose_predictor;
+
 public:
   Registry();
 
@@ -74,6 +77,10 @@ Registry::Registry()
     , m_face_detector() {
   // Load dlib standard frontal face detector
   m_face_detector = dlib::get_frontal_face_detector();
+
+  // Load 68-point face pose predictor
+  // This dataset generalizes a bunch of known facial feature points
+  dlib::deserialize("data/shape_predictor_68_face_landmarks.dat") >> m_face_pose_predictor;
 }
 
 void Registry::add_face(int fid, Image image) {
@@ -229,22 +236,25 @@ void Recognizer::process_frame(const Image& frame) {
   // Upscale image to improve face recognition accuracy
   dlib::pyramid_up(frame_dlib);
 
-  // FIXME: Remove all of this window nonsense eventually
+  // Blur the image a bit to remove transient artifacts
+  // This tries to tone down the horrible speckling and banding in Cozmo's camera
+  dlib::array2d<dlib::rgb_pixel> frame_dlib_blurred(frame.height, frame.width);
+  dlib::gaussian_blur(frame_dlib, frame_dlib_blurred, 1);
+
+  // FIXME: Remove this eventually
   window.clear_overlay();
-  window.set_image(frame_dlib);
-  std::vector<dlib::rectangle> rects;
+  window.set_image(frame_dlib_blurred);
+  std::vector<dlib::full_object_detection> shapes;
 
   // Find all faces in the frame
-  for (auto face_box : registry->m_face_detector(frame_dlib)) {
-    auto face_x = face_box.left();
-    auto face_y = face_box.top();
-    auto face_width = face_box.width();
-    auto face_height = face_box.height();
+  for (auto face : registry->m_face_detector(frame_dlib_blurred)) {
+    // Predict the pose of the face
+    auto pose = registry->m_face_pose_predictor(frame_dlib_blurred, face);
 
-    rects.push_back(dlib::rectangle(face_x, face_y, face_x + face_width, face_y + face_height));
+    shapes.push_back(pose);
   }
 
-  window.add_overlay(rects, dlib::rgb_pixel(255, 0, 0));
+  window.add_overlay(dlib::render_face_detections(shapes));
 }
 
 void Recognizer::processor_loop() {
