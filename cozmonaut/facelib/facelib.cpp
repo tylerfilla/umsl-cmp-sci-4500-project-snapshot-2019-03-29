@@ -6,6 +6,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -16,6 +17,8 @@
 #include <cstdlib>
 #include <iostream>
 
+#include <memory>
+
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 
@@ -24,7 +27,7 @@ namespace py = pybind11;
 namespace facelib {
 
 /** An image frame. */
-struct Frame {
+struct Image {
   /** The frame width. */
   int width;
 
@@ -62,13 +65,15 @@ using OnFaceHideCb = std::function<void(Event)>;
 /** The callback type for face move events. */
 using OnFaceMoveCb = std::function<void(Event)>;
 
+class Registry;
+
 /** The face recognizer device. */
 class Recognizer {
   /** The processor thread. */
   std::thread m_thd_proc;
 
   /** Pending incoming image frame. */
-  Frame m_pend_frame;
+  Image m_pend_frame;
 
   /** Whether the pending incoming image frame is present. */
   bool m_pend_frame_present;
@@ -107,6 +112,9 @@ class Recognizer {
   std::vector<OnFaceMoveCb> m_cbs_face_move;
 
 public:
+  /** The face registry. */
+  Registry* registry;
+
   Recognizer() = default;
 
   Recognizer(const Recognizer& rhs) = delete;
@@ -117,7 +125,7 @@ public:
 
 private:
   /** Process a single video frame. */
-  void process_frame(const Frame& frame);
+  void process_frame(const Image& frame);
 
   /** The processor function. */
   void processor_loop();
@@ -136,7 +144,7 @@ public:
   void poll();
 
   /** Submit a new frame. */
-  void submit_frame(Frame frame);
+  void submit_frame(Image frame);
 
   /** Start the processor. */
   void start_processor();
@@ -145,18 +153,13 @@ public:
   void stop_processor();
 };
 
-void Recognizer::process_frame(const Frame& frame) {
-  std::cout << "frame\n";
-
-  int ms = std::rand() % 500;
-  std::cout << " -> sleep for " << ms << "ms\n";
-  std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+void Recognizer::process_frame(const Image& frame) {
 }
 
 void Recognizer::processor_loop() {
   do {
     // The next frame
-    Frame frame;
+    Image frame;
 
     {
       // Acquire pending frame lock
@@ -225,7 +228,7 @@ void Recognizer::poll() {
   }
 }
 
-void Recognizer::submit_frame(Frame frame) {
+void Recognizer::submit_frame(Image frame) {
   // Acquire pending frame lock
   std::lock_guard<std::mutex> lock(m_pend_frame_mutex);
 
@@ -234,9 +237,9 @@ void Recognizer::submit_frame(Frame frame) {
 
   // If a pending frame is present, we have to drop it
   // This ensures we keep the pipeline going without introducing latency in the video stream
-  // This wouldn't be a problem if Cozmo would just let us drop his frames!!!
+  // This wouldn't be a problem if Cozmo would just deliver a normal video stream!!
   if (m_pend_frame_present) {
-    std::cout << "DROPPING FRAME\n";
+    std::cout << "WARNING: DROPPING FRAME!\n";
   }
 
   // You've got mail!
@@ -254,14 +257,44 @@ void Recognizer::stop_processor() {
   // TODO: Add a stop condition
 }
 
+/** A registry of faces. */
+class Registry {
+  /** The map backing store. */
+  std::map<int, Image> m_store;
+
+public:
+  Registry() = default;
+
+  Registry(const Registry& rhs) = delete;
+
+  Registry(Registry&& rhs) noexcept = delete;
+
+  ~Registry() = default;
+
+  /** Register a face image with a face ID. */
+  void add_face(int fid, Image image);
+
+  /** Remove a face by its face ID. */
+  void remove_face(int fid);
+};
+
+void Registry::add_face(int fid, Image image) {
+  // TODO: Also precompute stats on the face
+  m_store[fid] = image;
+}
+
+void Registry::remove_face(int fid) {
+  m_store.erase(fid);
+}
+
 } // namespace facelib
 
 PYBIND11_MODULE(facelib, m) {
-  py::class_<facelib::Frame>(m, "Frame")
+  py::class_<facelib::Image>(m, "Image")
     .def(py::init<>())
-    .def_readwrite("width", &facelib::Frame::width)
-    .def_readwrite("height", &facelib::Frame::height)
-    .def_readwrite("bytes", &facelib::Frame::bytes);
+    .def_readwrite("width", &facelib::Image::width)
+    .def_readwrite("height", &facelib::Image::height)
+    .def_readwrite("bytes", &facelib::Image::bytes);
 
   py::class_<facelib::Event>(m, "Event")
     .def(py::init<>())
@@ -279,5 +312,11 @@ PYBIND11_MODULE(facelib, m) {
     .def("poll", &facelib::Recognizer::poll)
     .def("submit_frame", &facelib::Recognizer::submit_frame)
     .def("start_processor", &facelib::Recognizer::start_processor)
-    .def("stop_processor", &facelib::Recognizer::stop_processor);
+    .def("stop_processor", &facelib::Recognizer::stop_processor)
+    .def_readwrite("registry", &facelib::Recognizer::registry);
+
+  py::class_<facelib::Registry>(m, "Registry")
+    .def(py::init<>())
+    .def("add_face", &facelib::Registry::add_face)
+    .def("remove_face", &facelib::Registry::remove_face);
 }

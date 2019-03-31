@@ -20,6 +20,11 @@ class TaskRun:
     def __init__(self, num_cozmos):
         self.num_cozmos = num_cozmos
 
+        # Create facelib face registry
+        # TODO: Register all known faces with it
+        # noinspection PyUnresolvedReferences
+        self.face_registry = facelib.Registry()
+
     def run(self):
         # Get an event loop
         loop = asyncio.get_event_loop()
@@ -36,8 +41,7 @@ class TaskRun:
         # Wait on all the established coroutines
         loop.run_until_complete(asyncio.gather(*coroutines))
 
-    @staticmethod
-    async def _client_program(conn: cozmo.conn.CozmoConnection) -> None:
+    async def _client_program(self, conn: cozmo.conn.CozmoConnection) -> None:
         """
         The client program.
 
@@ -58,6 +62,7 @@ class TaskRun:
         # Make a face recognizer for this robot (see facelib.cpp for impl)
         # noinspection PyUnresolvedReferences
         face_recognizer = facelib.Recognizer()
+        face_recognizer.registry = self.face_registry
         face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show, robot))
         face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide, robot))
         face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move, robot))
@@ -89,7 +94,7 @@ class TaskRun:
 
         # Convert frame to facelib format
         # noinspection PyUnresolvedReferences
-        frame = facelib.Frame()
+        frame = facelib.Image()
         frame.width = pil_frame_bbox[2] - pil_frame_bbox[0]
         frame.height = pil_frame_bbox[3] - pil_frame_bbox[1]
         frame.bytes = pil_frame.tobytes()
