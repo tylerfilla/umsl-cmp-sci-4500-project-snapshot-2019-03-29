@@ -104,9 +104,9 @@ class TaskRun:
         # noinspection PyUnresolvedReferences
         face_recognizer = facelib.Recognizer()
         face_recognizer.registry = self.face_registry
-        face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show, robot))
-        face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide, robot))
-        face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move, robot))
+        face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show, self, robot))
+        face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide, self, robot))
+        face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move, self, robot))
         face_recognizer.start_processor()
 
         # Store the face recognizer in the robot
@@ -147,18 +147,17 @@ class TaskRun:
         robot.our_stowaway_face_recognizer.submit_frame(frame)
 
     # noinspection PyUnresolvedReferences
-    @staticmethod
-    def _robot_on_face_show(robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    def _robot_on_face_show(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} show: {evt.x} {evt.y} {evt.width} {evt.height}')
+        print(f'*** HELLO {self.friend_db.get(evt.fid).name}')
 
     # noinspection PyUnresolvedReferences
-    @staticmethod
-    def _robot_on_face_hide(robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    def _robot_on_face_hide(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} hide: {evt.x} {evt.y} {evt.width} {evt.height}')
+        print(f'*** GOODBYE {self.friend_db.get(evt.fid).name}')
 
     # noinspection PyUnresolvedReferences
-    @staticmethod
-    def _robot_on_face_move(robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    def _robot_on_face_move(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} move: {evt.x} {evt.y} {evt.width} {evt.height}')
 
 
