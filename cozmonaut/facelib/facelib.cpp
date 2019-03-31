@@ -4,17 +4,39 @@
  * InsertLicenseText
  */
 
+#include <condition_variable>
 #include <functional>
+#include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
+
+// TODO: Remove these headers
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
+namespace facelib {
+
+/** An image frame. */
+struct Frame {
+  /** The frame width. */
+  int width;
+
+  /** The frame height. */
+  int height;
+
+  /** The raw image bytes. */
+  std::string bytes;
+};
+
 /** An event involving a face. */
-struct FaceEvent {
+struct Event {
   /** The face ID. */
   int fid;
 
@@ -32,48 +54,73 @@ struct FaceEvent {
 };
 
 /** The callback type for face show events. */
-using OnFaceShowCb = std::function<void(FaceEvent)>;
+using OnFaceShowCb = std::function<void(Event)>;
 
 /** The callback type for face hide events. */
-using OnFaceHideCb = std::function<void(FaceEvent)>;
+using OnFaceHideCb = std::function<void(Event)>;
 
 /** The callback type for face move events. */
-using OnFaceMoveCb = std::function<void(FaceEvent)>;
+using OnFaceMoveCb = std::function<void(Event)>;
 
-class FaceRecognizer {
+/** The face recognizer device. */
+class Recognizer {
   /** The processor thread. */
   std::thread m_thd_proc;
 
-  /** Pending face show events. */
-  std::vector<FaceEvent> m_pend_face_show;
+  /** Pending incoming image frame. */
+  Frame m_pend_frame;
+
+  /** Whether the pending incoming image frame is present. */
+  bool m_pend_frame_present;
+
+  /** Condition variable signalling presence of the pending incoming frame. */
+  std::condition_variable m_pend_frame_cv;
+
+  /** Mutex for pending incoming image frame. */
+  std::mutex m_pend_frame_mutex;
+
+  /** Pending outgoing face show events. */
+  std::vector<Event> m_pend_face_show;
+
+  /** Mutex for pending outgoing face show events. */
+  std::mutex m_pend_face_show_mutex;
 
   /** Registered face show callbacks. */
   std::vector<OnFaceShowCb> m_cbs_face_show;
 
-  /** Pending face hide events. */
-  std::vector<FaceEvent> m_pend_face_hide;
+  /** Pending outgoing face hide events. */
+  std::vector<Event> m_pend_face_hide;
+
+  /** Mutex for pending outgoing face hide events. */
+  std::mutex m_pend_face_hide_mutex;
 
   /** Registered face hide callbacks. */
   std::vector<OnFaceHideCb> m_cbs_face_hide;
 
-  /** Registered face moved events. */
-  std::vector<FaceEvent> m_pend_face_move;
+  /** Pending outgoing face move events. */
+  std::vector<Event> m_pend_face_move;
+
+  /** Mutex for pending outgoing face move events. */
+  std::mutex m_pend_face_move_mutex;
 
   /** Registered face move callbacks. */
   std::vector<OnFaceMoveCb> m_cbs_face_move;
 
 public:
-  FaceRecognizer() = default;
+  Recognizer() = default;
 
-  FaceRecognizer(const FaceRecognizer& rhs) = delete;
+  Recognizer(const Recognizer& rhs) = delete;
 
-  FaceRecognizer(FaceRecognizer&& rhs) noexcept = delete;
+  Recognizer(Recognizer&& rhs) noexcept = delete;
 
-  ~FaceRecognizer() = default;
+  ~Recognizer() = default;
 
 private:
+  /** Process a single video frame. */
+  void process_frame(const Frame& frame);
+
   /** The processor function. */
-  void processor();
+  void processor_loop();
 
 public:
   /** Register a face show callback. */
@@ -89,7 +136,7 @@ public:
   void poll();
 
   /** Submit a new frame. */
-  void submit_frame(const char* bytes, int width, int height);
+  void submit_frame(Frame frame);
 
   /** Start the processor. */
   void start_processor();
@@ -98,22 +145,57 @@ public:
   void stop_processor();
 };
 
-void FaceRecognizer::on_face_show(OnFaceShowCb cb) {
+void Recognizer::process_frame(const Frame& frame) {
+  std::cout << "frame\n";
+
+  int ms = std::rand() % 500;
+  std::cout << " -> sleep for " << ms << "ms\n";
+  std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+void Recognizer::processor_loop() {
+  do {
+    // The next frame
+    Frame frame;
+
+    {
+      // Acquire pending frame lock
+      std::unique_lock<std::mutex> lock(m_pend_frame_mutex);
+
+      // Wait while frame is not present
+      // Note that the CV steals the lock and periodically toggles it
+      // The lock above does NOT stay locked while we wait
+      m_pend_frame_cv.wait(lock, [&]() {
+        return m_pend_frame_present;
+      });
+
+      // Move the next frame in for processing
+      frame = std::move(m_pend_frame);
+      m_pend_frame_present = false;
+    }
+
+    // FINALLY, we get to process the frame!
+    // And we can take our time, too!!
+    process_frame(frame);
+  } while (true); // TODO: Add a stop condition
+}
+
+void Recognizer::on_face_show(OnFaceShowCb cb) {
   // Register callback for face show event
   m_cbs_face_show.push_back(cb);
 }
 
-void FaceRecognizer::on_face_hide(OnFaceHideCb cb) {
+void Recognizer::on_face_hide(OnFaceHideCb cb) {
   // Register callback for face hide event
   m_cbs_face_hide.push_back(cb);
 }
 
-void FaceRecognizer::on_face_move(OnFaceMoveCb cb) {
+void Recognizer::on_face_move(OnFaceMoveCb cb) {
   // Register callback for face move event
   m_cbs_face_move.push_back(cb);
 }
 
-void FaceRecognizer::poll() {
+void Recognizer::poll() {
   // Generic event dispatcher algorithm
   auto&& dispatch = [](auto&& evts, auto&& cbs) {
     for (auto&& evt : evts) {
@@ -124,43 +206,78 @@ void FaceRecognizer::poll() {
     evts.clear();
   };
 
-  // Dispatch for all event types
-  dispatch(m_pend_face_show, m_cbs_face_show);
-  dispatch(m_pend_face_hide, m_cbs_face_hide);
-  dispatch(m_pend_face_move, m_cbs_face_move);
+  {
+    // Lock and dispatch face show events
+    std::lock_guard<std::mutex> lock(m_pend_face_show_mutex);
+    dispatch(m_pend_face_show, m_cbs_face_show);
+  }
+
+  {
+    // Lock and dispatch face hide events
+    std::lock_guard<std::mutex> lock(m_pend_face_hide_mutex);
+    dispatch(m_pend_face_hide, m_cbs_face_hide);
+  }
+
+  {
+    // Lock and dispatch face move events
+    std::lock_guard<std::mutex> lock(m_pend_face_move_mutex);
+    dispatch(m_pend_face_move, m_cbs_face_move);
+  }
 }
 
-#include <iostream>
+void Recognizer::submit_frame(Frame frame) {
+  // Acquire pending frame lock
+  std::lock_guard<std::mutex> lock(m_pend_frame_mutex);
 
-void FaceRecognizer::submit_frame(const char* bytes, int width, int height) {
-  std::cout << "frame " << width << "x" << height << ": " << (void*) bytes << "\n";
+  // Replace the pending frame
+  m_pend_frame = std::move(frame);
 
-  // TODO
+  // If a pending frame is present, we have to drop it
+  // This ensures we keep the pipeline going without introducing latency in the video stream
+  // This wouldn't be a problem if Cozmo would just let us drop his frames!!!
+  if (m_pend_frame_present) {
+    std::cout << "DROPPING FRAME\n";
+  }
+
+  // You've got mail!
+  m_pend_frame_present = true;
+  m_pend_frame_cv.notify_one();
 }
 
-void FaceRecognizer::start_processor() {
-  // TODO
+void Recognizer::start_processor() {
+  // Kick off the processor thread
+  // TODO: Guard against double-start
+  m_thd_proc = std::thread(&Recognizer::processor_loop, this);
 }
 
-void FaceRecognizer::stop_processor() {
-  // TODO
+void Recognizer::stop_processor() {
+  // TODO: Add a stop condition
 }
+
+} // namespace facelib
 
 PYBIND11_MODULE(facelib, m) {
-  py::class_<FaceEvent>(m, "FaceEvent")
-    .def_readwrite("fid", &FaceEvent::fid)
-    .def_readwrite("x", &FaceEvent::x)
-    .def_readwrite("y", &FaceEvent::y)
-    .def_readwrite("width", &FaceEvent::width)
-    .def_readwrite("height", &FaceEvent::height);
-
-  py::class_<FaceRecognizer>(m, "FaceRecognizer")
+  py::class_<facelib::Frame>(m, "Frame")
     .def(py::init<>())
-    .def("on_face_show", &FaceRecognizer::on_face_show)
-    .def("on_face_hide", &FaceRecognizer::on_face_hide)
-    .def("on_face_move", &FaceRecognizer::on_face_move)
-    .def("poll", &FaceRecognizer::poll)
-    .def("submit_frame", &FaceRecognizer::submit_frame)
-    .def("start_processor", &FaceRecognizer::start_processor)
-    .def("stop_processor", &FaceRecognizer::stop_processor);
+    .def_readwrite("width", &facelib::Frame::width)
+    .def_readwrite("height", &facelib::Frame::height)
+    .def_readwrite("bytes", &facelib::Frame::bytes);
+
+  py::class_<facelib::Event>(m, "Event")
+    .def(py::init<>())
+    .def_readwrite("fid", &facelib::Event::fid)
+    .def_readwrite("x", &facelib::Event::x)
+    .def_readwrite("y", &facelib::Event::y)
+    .def_readwrite("width", &facelib::Event::width)
+    .def_readwrite("height", &facelib::Event::height);
+
+  py::class_<facelib::Recognizer>(m, "Recognizer")
+    .def(py::init<>())
+    .def("on_face_show", &facelib::Recognizer::on_face_show)
+    .def("on_face_hide", &facelib::Recognizer::on_face_hide)
+    .def("on_face_move", &facelib::Recognizer::on_face_move)
+    .def("poll", &facelib::Recognizer::poll)
+    .def("submit_frame", &facelib::Recognizer::submit_frame)
+    .def("start_processor", &facelib::Recognizer::start_processor)
+    .def("stop_processor", &facelib::Recognizer::stop_processor);
 }
