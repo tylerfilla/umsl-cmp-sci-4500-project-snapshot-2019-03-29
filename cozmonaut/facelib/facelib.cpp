@@ -16,11 +16,16 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_processing/render_face_detections.h>
+#include <dlib/image_processing.h>
+#include <dlib/gui_widgets.h>
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 
 #include <spdyface.h>
+#include <spdyface_dlib.h>
 
 namespace py = pybind11;
 
@@ -181,25 +186,60 @@ public:
   void stop_processor();
 };
 
+static dlib::image_window window;
+
 void Recognizer::process_frame(const Image& frame) {
-  // TODO: Watch for faces and recognize them
+  // Create an image
+  dlib::array2d<dlib::rgb_pixel> frame_dlib(frame.height, frame.width);
+
+  // Quickly scan through the frame
+  // Python Image Library (PIL) uses a different format than dlib C++ library
+  for (int row = 0; row < frame.height; ++row) {
+    for (int col = 0; col < frame.width; ++col) {
+      // Compute pixel offset
+      std::size_t pixloc = 3 * (row * frame.width + col);
+
+      // Extract color components for this pixel
+      auto r = (unsigned char) frame.bytes[pixloc + 0];
+      auto g = (unsigned char) frame.bytes[pixloc + 1];
+      auto b = (unsigned char) frame.bytes[pixloc + 2];
+
+      // Load up a dlib pixel
+      dlib::rgb_pixel pix(r, g, b);
+
+      // Store away the pixel in the dlib frame
+      frame_dlib[row][col] = pix;
+    }
+  }
+
+  window.set_image(frame_dlib);
 }
 
 void Recognizer::processor_loop() {
   do {
-    // Acquire pending frame lock
-    std::unique_lock<std::mutex> lock(m_pend_frame_mutex);
+    // The frame to process
+    Image frame;
 
-    // Wait while frame is not present
-    // Note that the CV steals the lock and periodically toggles it
-    // The lock above does NOT stay locked while we wait
-    m_pend_frame_cv.wait(lock, [&]() {
-      return m_pend_frame_present;
-    });
+    {
+      // Acquire pending frame lock
+      // This will unlock automatically when it goes out of scope
+      // It can also be transferred somewhere else (like a condition variable)
+      std::unique_lock<std::mutex> lock(m_pend_frame_mutex);
 
-    // Move the next frame in for processing
-    Image frame = std::move(m_pend_frame);
-    m_pend_frame_present = false;
+      // Wait while frame is not present
+      // Note that the CV steals the lock and periodically toggles it
+      // The lock above does NOT stay locked while we wait
+      // When waiting is over, it puts the lock back in the variable above
+      m_pend_frame_cv.wait(lock, [&]() {
+        return m_pend_frame_present;
+      });
+
+      // Move the pending frame out for processing on our time
+      frame = std::move(m_pend_frame);
+
+      // Mark pending frame not present
+      m_pend_frame_present = false;
+    }
 
     // FINALLY, we get to process the frame!
     // And we can take our time, too!!
