@@ -152,7 +152,7 @@ public:
 private:
   face_encoding_type encode_face_pose(dlib::array2d<dlib::rgb_pixel> image, dlib::full_object_detection pose);
 
-  face_encoding_type encode_face(const Image& image, int l, int t, int r, int b);
+  face_encoding_type encode_face(const Image& image);
 
 public:
   /** Register a face image with a face ID. */
@@ -193,22 +193,25 @@ Registry::face_encoding_type Registry::encode_face_pose(dlib::array2d<dlib::rgb_
   return dlib::matrix_cast<double>(m_face_recognizer(face_chips, 16)[0]);
 }
 
-Registry::face_encoding_type Registry::encode_face(const Image& image, int l, int t, int r, int b) {
+Registry::face_encoding_type Registry::encode_face(const Image& image) {
   // Convert image to dlib array
   auto image_dlib = image_to_dlib_array(image);
 
   // Upscale image to improve face recognition accuracy
   dlib::pyramid_up(image_dlib);
 
+  // Find the first face in the image
+  auto face = m_face_detector(image_dlib)[0];
+
   // Predict pose of the face
-  auto pose = m_face_pose_predictor(image_dlib, dlib::rectangle(l, t, r, b));
+  auto pose = m_face_pose_predictor(image_dlib, face);
 
   // Encode the face from its pose
   return encode_face_pose(std::move(image_dlib), pose);
 }
 
 void Registry::add_face(int fid, Image image) {
-  m_store[fid] = encode_face(image, 0, 0, image.width, image.height);
+  m_store[fid] = encode_face(image);
 }
 
 void Registry::remove_face(int fid) {
@@ -401,7 +404,7 @@ void Recognizer::process_frame(const Image& frame) {
 
       // Check against tolerance
       // TODO: Make this configurable
-      if (dot <= 0.64 * 0.64) {
+      if (dot <= 0.6 * 0.6) {
         face_heartbeat(k, face.left(), face.top(), face.right(), face.bottom());
       }
     }

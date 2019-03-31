@@ -7,9 +7,12 @@
 import asyncio
 import facelib
 import functools
+from datetime import datetime
 
 import PIL
 import cozmo
+
+from cozmonaut.friend import Friend, FriendDB
 
 
 class TaskRun:
@@ -20,19 +23,48 @@ class TaskRun:
     def __init__(self, num_cozmos):
         self.num_cozmos = num_cozmos
 
+        # Create friend database
+        self.friend_db = FriendDB()
+
+        # Add some friends to test with
+        # TODO: Load friends from an actual data store (FS or DB)
+        self.friend_db.add(
+            Friend(
+                fid=36,
+                name="Tyler",
+                photo=PIL.Image.open('me.png'),
+                when_first_seen=datetime.now(),
+                when_last_seen=datetime.now(),
+            )
+        )
+        self.friend_db.add(
+            Friend(
+                fid=123,
+                name="Rando",
+                photo=PIL.Image.open('notme.jpg'),
+                when_first_seen=datetime.now(),
+                when_last_seen=datetime.now(),
+            )
+        )
+
         # Create facelib face registry
-        # TODO: Register all known faces with it
         # noinspection PyUnresolvedReferences
         self.face_registry = facelib.Registry()
 
-        # Register a face with ID 42
-        # TODO: Add friend list with "profile pictures"
-        img = PIL.Image.open('me.png')
-        img2 = facelib.Image()
-        img2.bytes = img.tobytes()
-        img2.width = img.getbbox()[2] - img.getbbox()[0]
-        img2.height = img.getbbox()[3] - img.getbbox()[1]
-        self.face_registry.add_face(42, img2)
+        # Go over all friends we know
+        # These friends are shared for all the Cozmos
+        for fid in self.friend_db.list():
+            # Get this friend
+            friend = self.friend_db.get(fid)
+
+            # Add face to face registry
+            # We use the friend ID as the face ID (since a human has only one face)
+            # noinspection PyUnresolvedReferences
+            image = facelib.Image()
+            image.width = friend.photo.getbbox()[2] - friend.photo.getbbox()[0]
+            image.height = friend.photo.getbbox()[3] - friend.photo.getbbox()[1]
+            image.bytes = friend.photo.tobytes()
+            self.face_registry.add_face(fid, image)
 
     def run(self):
         # Get an event loop
