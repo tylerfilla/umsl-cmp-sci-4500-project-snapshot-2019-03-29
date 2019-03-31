@@ -30,6 +30,11 @@
 #include <dlib/image_transforms.h>
 #include <dlib/clustering.h>
 
+// TODO: Clean this entire file up (remove unneeded things, factor out duplications, remove headers...)
+// TODO: Document document document...
+// TODO: Remove all printfs and couts
+// TODO: Let user specify, in Python, location of dlib datafiles and tolerance for face matcher
+
 namespace py = pybind11;
 
 namespace facelib {
@@ -281,6 +286,9 @@ class Recognizer {
   /** Registered face move callbacks. */
   std::vector<OnFaceMoveCb> m_cbs_face_move;
 
+  /** The face tracker. */
+  std::map<int, long> m_faces;
+
 public:
   /** The face registry. */
   Registry* registry;
@@ -294,6 +302,9 @@ public:
   ~Recognizer() = default;
 
 private:
+  /** Keep the given face alive. */
+  void face_heartbeat(int fid, int l, int t, int r, int b);
+
   /** Process a single video frame. */
   void process_frame(const Image& frame);
 
@@ -325,6 +336,28 @@ public:
 
 // FIXME: Remove this eventually
 static dlib::image_window window;
+
+void Recognizer::face_heartbeat(int fid, int l, int t, int r, int b) {
+  std::cout << "FACE " << fid << "\n";
+
+  // If this face was not already in frame
+  if (m_faces.find(fid) == m_faces.end()) {
+    {
+      // Lock and push face show event
+      std::lock_guard lock(m_pend_face_show_mutex);
+      m_pend_face_show.push_back(Event {fid, l, t, r - l, b - t});
+    }
+  } else {
+    {
+      // Lock and push face move event
+      std::lock_guard lock(m_pend_face_move_mutex);
+      m_pend_face_move.push_back(Event {fid, l, t, r - l, b - t});
+    }
+  }
+
+  // Reset lifetime counter for face
+  m_faces[fid] = 0;
+}
 
 void Recognizer::process_frame(const Image& frame) {
   // Convert frame to dlib array
@@ -369,9 +402,33 @@ void Recognizer::process_frame(const Image& frame) {
       // Check against tolerance
       // TODO: Make this configurable
       if (dot <= 0.64 * 0.64) {
-        std::cout << "MATCH with " << k << "\n";
+        face_heartbeat(k, face.left(), face.top(), face.right(), face.bottom());
       }
     }
+  }
+
+  // Handle hidden faces
+  std::vector<int> pruned_faces;
+  for (auto&& [fid, lifetime] : m_faces) {
+    // If face is gone for a certain number of frames, it's dead
+    if (lifetime > 3) { // TODO: Make this configurable
+      std::cout << "LOST " << fid << "\n";
+
+      // A list of pruned faces
+      pruned_faces.push_back(fid);
+
+      {
+        // Lock and push face hide event
+        std::lock_guard lock(m_pend_face_hide_mutex);
+        m_pend_face_hide.push_back(Event {fid, 0, 0, 0, 0}); // TODO: Don't use standard Event struct?
+      }
+    }
+
+    // Increment lifetime on all faces
+    lifetime++;
+  }
+  for (auto fid : pruned_faces) {
+    m_faces.erase(fid);
   }
 
   // FIXME: Remove this eventually
@@ -468,7 +525,7 @@ void Recognizer::submit_frame(Image frame) {
   // This ensures we keep the pipeline going without introducing latency in the video stream
   // This wouldn't be a problem if Cozmo would just deliver a normal video stream!!
   if (m_pend_frame_present) {
-    std::cout << "WARNING: DROPPING FRAME!\n";
+//  std::cout << "WARNING: DROPPING FRAME!\n";
   }
 
   // You've got mail!
