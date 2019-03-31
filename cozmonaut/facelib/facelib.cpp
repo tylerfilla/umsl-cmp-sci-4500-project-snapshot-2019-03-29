@@ -45,11 +45,16 @@ struct Image {
 
 /** A registry of faces. */
 class Registry {
+  friend class Recognizer;
+
   /** The map backing store. */
   std::map<int, Image> m_store;
 
+  /** The face detector. */
+  dlib::frontal_face_detector m_face_detector;
+
 public:
-  Registry() = default;
+  Registry();
 
   Registry(const Registry& rhs) = delete;
 
@@ -63,6 +68,13 @@ public:
   /** Remove a face by its face ID. */
   void remove_face(int fid);
 };
+
+Registry::Registry()
+    : m_store()
+    , m_face_detector() {
+  // Load dlib standard frontal face detector
+  m_face_detector = dlib::get_frontal_face_detector();
+}
 
 void Registry::add_face(int fid, Image image) {
   // TODO: Also precompute stats on the face
@@ -186,33 +198,53 @@ public:
   void stop_processor();
 };
 
+// FIXME: Remove this eventually
 static dlib::image_window window;
 
 void Recognizer::process_frame(const Image& frame) {
-  // Create an image
+  // Create a dlib image with same size
+  // The height == # rows and the width == # cols
   dlib::array2d<dlib::rgb_pixel> frame_dlib(frame.height, frame.width);
 
-  // Quickly scan through the frame
+  // Quickly scan through the frame to convert its bytes
   // Python Image Library (PIL) uses a different format than dlib C++ library
   for (int row = 0; row < frame.height; ++row) {
     for (int col = 0; col < frame.width; ++col) {
-      // Compute pixel offset
-      std::size_t pixloc = 3 * (row * frame.width + col);
+      // Compute pixel offset into the frame
+      // This is the byte offset (into the PIL image) of the first pixel component
+      auto pixel_offset = 3ul * (row * frame.width + col);
 
       // Extract color components for this pixel
-      auto r = (unsigned char) frame.bytes[pixloc + 0];
-      auto g = (unsigned char) frame.bytes[pixloc + 1];
-      auto b = (unsigned char) frame.bytes[pixloc + 2];
-
-      // Load up a dlib pixel
-      dlib::rgb_pixel pix(r, g, b);
+      // This looks into the pixel a bit further for color data
+      auto r = (unsigned char) frame.bytes[pixel_offset + 0];
+      auto g = (unsigned char) frame.bytes[pixel_offset + 1];
+      auto b = (unsigned char) frame.bytes[pixel_offset + 2];
 
       // Store away the pixel in the dlib frame
-      frame_dlib[row][col] = pix;
+      // This adopts dlib C++ format (with a custom pixel class)
+      frame_dlib[row][col] = dlib::rgb_pixel(r, g, b);
     }
   }
 
+  // Upscale image to improve face recognition accuracy
+  dlib::pyramid_up(frame_dlib);
+
+  // FIXME: Remove all of this window nonsense eventually
+  window.clear_overlay();
   window.set_image(frame_dlib);
+  std::vector<dlib::rectangle> rects;
+
+  // Find all faces in the frame
+  for (auto face_box : registry->m_face_detector(frame_dlib)) {
+    auto face_x = face_box.left();
+    auto face_y = face_box.top();
+    auto face_width = face_box.width();
+    auto face_height = face_box.height();
+
+    rects.push_back(dlib::rectangle(face_x, face_y, face_x + face_width, face_y + face_height));
+  }
+
+  window.add_overlay(rects, dlib::rgb_pixel(255, 0, 0));
 }
 
 void Recognizer::processor_loop() {
