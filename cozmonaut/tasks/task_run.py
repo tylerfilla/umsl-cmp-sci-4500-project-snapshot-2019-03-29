@@ -25,6 +25,15 @@ class TaskRun:
         # noinspection PyUnresolvedReferences
         self.face_registry = facelib.Registry()
 
+        # Register a face with ID 42
+        # TODO: Add friend list with "profile pictures"
+        img = PIL.Image.open('me.png')
+        img2 = facelib.Image()
+        img2.bytes = img.tobytes()
+        img2.width = img.getbbox()[2] - img.getbbox()[0]
+        img2.height = img.getbbox()[3] - img.getbbox()[1]
+        self.face_registry.add_face(42, img2)
+
     def run(self):
         # Get an event loop
         loop = asyncio.get_event_loop()

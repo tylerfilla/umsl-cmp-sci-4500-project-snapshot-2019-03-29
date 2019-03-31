@@ -17,10 +17,10 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <memory>
-
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
+
+#include <spdyface.h>
 
 namespace py = pybind11;
 
@@ -37,6 +37,36 @@ struct Image {
   /** The raw image bytes. */
   std::string bytes;
 };
+
+/** A registry of faces. */
+class Registry {
+  /** The map backing store. */
+  std::map<int, Image> m_store;
+
+public:
+  Registry() = default;
+
+  Registry(const Registry& rhs) = delete;
+
+  Registry(Registry&& rhs) noexcept = delete;
+
+  ~Registry() = default;
+
+  /** Register a face image with a face ID. */
+  void add_face(int fid, Image image);
+
+  /** Remove a face by its face ID. */
+  void remove_face(int fid);
+};
+
+void Registry::add_face(int fid, Image image) {
+  // TODO: Also precompute stats on the face
+  m_store[fid] = image;
+}
+
+void Registry::remove_face(int fid) {
+  m_store.erase(fid);
+}
 
 /** An event involving a face. */
 struct Event {
@@ -64,8 +94,6 @@ using OnFaceHideCb = std::function<void(Event)>;
 
 /** The callback type for face move events. */
 using OnFaceMoveCb = std::function<void(Event)>;
-
-class Registry;
 
 /** The face recognizer device. */
 class Recognizer {
@@ -154,28 +182,24 @@ public:
 };
 
 void Recognizer::process_frame(const Image& frame) {
+  // TODO: Watch for faces and recognize them
 }
 
 void Recognizer::processor_loop() {
   do {
-    // The next frame
-    Image frame;
+    // Acquire pending frame lock
+    std::unique_lock<std::mutex> lock(m_pend_frame_mutex);
 
-    {
-      // Acquire pending frame lock
-      std::unique_lock<std::mutex> lock(m_pend_frame_mutex);
+    // Wait while frame is not present
+    // Note that the CV steals the lock and periodically toggles it
+    // The lock above does NOT stay locked while we wait
+    m_pend_frame_cv.wait(lock, [&]() {
+      return m_pend_frame_present;
+    });
 
-      // Wait while frame is not present
-      // Note that the CV steals the lock and periodically toggles it
-      // The lock above does NOT stay locked while we wait
-      m_pend_frame_cv.wait(lock, [&]() {
-        return m_pend_frame_present;
-      });
-
-      // Move the next frame in for processing
-      frame = std::move(m_pend_frame);
-      m_pend_frame_present = false;
-    }
+    // Move the next frame in for processing
+    Image frame = std::move(m_pend_frame);
+    m_pend_frame_present = false;
 
     // FINALLY, we get to process the frame!
     // And we can take our time, too!!
@@ -255,36 +279,6 @@ void Recognizer::start_processor() {
 
 void Recognizer::stop_processor() {
   // TODO: Add a stop condition
-}
-
-/** A registry of faces. */
-class Registry {
-  /** The map backing store. */
-  std::map<int, Image> m_store;
-
-public:
-  Registry() = default;
-
-  Registry(const Registry& rhs) = delete;
-
-  Registry(Registry&& rhs) noexcept = delete;
-
-  ~Registry() = default;
-
-  /** Register a face image with a face ID. */
-  void add_face(int fid, Image image);
-
-  /** Remove a face by its face ID. */
-  void remove_face(int fid);
-};
-
-void Registry::add_face(int fid, Image image) {
-  // TODO: Also precompute stats on the face
-  m_store[fid] = image;
-}
-
-void Registry::remove_face(int fid) {
-  m_store.erase(fid);
 }
 
 } // namespace facelib
