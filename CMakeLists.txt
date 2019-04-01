@@ -11,7 +11,6 @@ find_package(PythonInterp 3.7 REQUIRED)
 find_package(PythonLibs 3.7 REQUIRED)
 
 add_subdirectory(third_party/pybind11)
-add_subdirectory(third_party/spdyface2) # TODO: Use plain ol' "spdyface" folder eventually
 
 #
 # facelib C++ library
@@ -22,6 +21,7 @@ set(facelib_SRC_FILES
         )
 
 add_library(facelib SHARED ${facelib_SRC_FILES})
+set_target_properties(facelib PROPERTIES CXX_STANDARD 17)
 target_include_directories(facelib PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(facelib PRIVATE ${PYTHON_LIBRARIES} pybind11::pybind11)
 
