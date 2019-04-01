@@ -10,6 +10,9 @@ project(cozmonaut)
 find_package(PythonInterp 3.7 REQUIRED)
 find_package(PythonLibs 3.7 REQUIRED)
 
+set(BUILD_SHARED_LIBS ON)
+
+add_subdirectory(third_party/dlib)
 add_subdirectory(third_party/pybind11)
 
 #
@@ -23,7 +26,7 @@ set(facelib_SRC_FILES
 add_library(facelib SHARED ${facelib_SRC_FILES})
 set_target_properties(facelib PROPERTIES CXX_STANDARD 17)
 target_include_directories(facelib PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(facelib PRIVATE ${PYTHON_LIBRARIES} pybind11::pybind11)
+target_link_libraries(facelib PRIVATE ${PYTHON_LIBRARIES} dlib::dlib pybind11::pybind11)
 
 # Name the library file in such a way that setuptools can detect it
 # TODO: We should compute this instead of hardcoding it

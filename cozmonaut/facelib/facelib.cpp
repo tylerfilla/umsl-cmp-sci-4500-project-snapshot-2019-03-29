@@ -388,6 +388,9 @@ void Recognizer::process_frame(const Image& frame) {
     // Encode the face pose
     auto encoding = registry->encode_face_pose(std::move(frame_dlib_blurred), pose); // FIXME: const ref rather than move?
 
+    // Whether or not the face was matched
+    bool matched = false;
+
     // Go over all known encodings
     // TODO: Maybe we can speed this up with some sort of hashing?
     for (auto [k, v] : registry->m_store) {
@@ -406,7 +409,19 @@ void Recognizer::process_frame(const Image& frame) {
       // TODO: Make this configurable
       if (dot <= 0.6 * 0.6) {
         face_heartbeat(k, face.left(), face.top(), face.right(), face.bottom());
+
+        // We're using a first match algorithm here
+        // TODO: Eventually we can select the best match
+        matched = true;
+        break;
       }
+    }
+
+    if (!matched) {
+      // Lock and push face show event
+      // TODO: Eventually add a new type of event for unrecognized faces (we could also track them, too)
+      std::lock_guard lock(m_pend_face_show_mutex);
+      m_pend_face_show.push_back(Event {-1, face.left(), face.top(), face.right(), face.bottom()});
     }
   }
 
