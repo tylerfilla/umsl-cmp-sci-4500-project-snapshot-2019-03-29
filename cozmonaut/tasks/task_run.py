@@ -7,13 +7,12 @@
 import asyncio
 import facelib
 import functools
-from datetime import datetime
 
 import PIL
 import cozmo
 import speech_recognition
 
-from cozmonaut.friend import Friend, FriendDB
+from cozmonaut.friend import FriendDB
 
 
 class TaskRun:
@@ -32,24 +31,15 @@ class TaskRun:
 
         # Add some friends to test with
         # TODO: Load friends from an actual data store (FS or DB)
-        self.friend_db.add(
-            Friend(
-                fid=36,
-                name="Tyler",
-                photo=PIL.Image.open('me.png'),
-                when_first_seen=datetime.now(),
-                when_last_seen=datetime.now(),
-            )
-        )
-        self.friend_db.add(
-            Friend(
-                fid=123,
-                name="Rando",
-                photo=PIL.Image.open('notme.jpg'),
-                when_first_seen=datetime.now(),
-                when_last_seen=datetime.now(),
-            )
-        )
+        # self.friend_db.add(
+        #    Friend(
+        #        fid=36,
+        #        name="Tyler",
+        #        photo=PIL.Image.open('me.png'),
+        #        when_first_seen=datetime.now(),
+        #        when_last_seen=datetime.now(),
+        #    )
+        # )
 
         # Create facelib face registry
         # noinspection PyUnresolvedReferences
@@ -202,3 +192,5 @@ class TaskRun:
 
 # Make Cozmo stay on the charger when we connect
 cozmo.robot.Robot.drive_off_charger_on_connect = False
+
+# FIXME: There has to be a better way to use an async function as a callback than the awkward trampoline functions above
