@@ -11,6 +11,7 @@ from datetime import datetime
 
 import PIL
 import cozmo
+import speech_recognition
 
 from cozmonaut.friend import Friend, FriendDB
 
@@ -22,6 +23,9 @@ class TaskRun:
 
     def __init__(self, num_cozmos):
         self.num_cozmos = num_cozmos
+
+        # The speech recognizer
+        self.speech_recognizer = speech_recognition.Recognizer()
 
         # Create friend database
         self.friend_db = FriendDB()
@@ -98,15 +102,15 @@ class TaskRun:
 
         # Listen for incoming camera frames
         robot.add_event_handler(cozmo.camera.EvtNewRawCameraImage,
-                                functools.partial(TaskRun._robot_on_new_raw_camera_image, robot))
+                                functools.partial(TaskRun._robot_on_new_raw_camera_image_cb, self, robot))
 
         # Make a face recognizer for this robot (see facelib.cpp for impl)
         # noinspection PyUnresolvedReferences
         face_recognizer = facelib.Recognizer()
         face_recognizer.registry = self.face_registry
-        face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show, self, robot))
-        face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide, self, robot))
-        face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move, self, robot))
+        face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show_cb, self, robot))
+        face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide_cb, self, robot))
+        face_recognizer.on_face_move(functools.partial(TaskRun._robot_on_face_move_cb, self, robot))
         face_recognizer.start_processor()
 
         # Store the face recognizer in the robot
@@ -123,8 +127,11 @@ class TaskRun:
             # This lets the other coroutines have a go
             await asyncio.sleep(0.01)
 
-    @staticmethod
-    def _robot_on_new_raw_camera_image(robot: cozmo.robot.Robot, evt: cozmo.camera.EvtNewRawCameraImage, **kw):
+    def _robot_on_new_raw_camera_image_cb(self, robot: cozmo.robot.Robot, evt: cozmo.camera.EvtNewRawCameraImage, **kw):
+        asyncio.ensure_future(self._robot_on_new_raw_camera_image(robot, evt, **kw))
+
+    async def _robot_on_new_raw_camera_image(self, robot: cozmo.robot.Robot, evt: cozmo.camera.EvtNewRawCameraImage,
+                                             **kw):
         # Get the new frame in PIL format
         pil_frame: PIL.Image.Image = evt.image
 
@@ -146,18 +153,50 @@ class TaskRun:
         # noinspection PyUnresolvedReferences
         robot.our_stowaway_face_recognizer.submit_frame(frame)
 
+    def _robot_on_face_show_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+        asyncio.ensure_future(self._robot_on_face_show(robot, evt))
+
     # noinspection PyUnresolvedReferences
-    def _robot_on_face_show(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_show(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} show: {evt.x} {evt.y} {evt.width} {evt.height}')
-        print(f'*** HELLO {self.friend_db.get(evt.fid).name}')
+
+        if evt.fid == -1:
+            # Who are you?
+            await robot.say_text(f'Who are you?').wait_for_completed()
+
+            # FIXME: The entire async loop stalls while listening for audio
+            # FIXME: We might need to employ another background thread
+
+            # Open mic for speech recognition
+            with speech_recognition.Microphone() as source:
+                # Capture an utterance
+                heard = self.speech_recognizer.listen(source)
+
+                # Try to recognize what it said
+                said = self.speech_recognizer.recognize_sphinx(heard)
+
+                # Parrot it back
+                await robot.say_text(said).wait_for_completed()
+        else:
+            # I know you!
+            await robot.say_text(f'Hello, {self.friend_db.get(evt.fid).name}!').wait_for_completed()
+
+    def _robot_on_face_hide_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+        asyncio.ensure_future(self._robot_on_face_hide(robot, evt))
 
     # noinspection PyUnresolvedReferences
-    def _robot_on_face_hide(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_hide(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} hide: {evt.x} {evt.y} {evt.width} {evt.height}')
-        print(f'*** GOODBYE {self.friend_db.get(evt.fid).name}')
+
+        if evt.fid != -1:
+            # Goodbye person I know
+            await robot.say_text(f'Goodbye, {self.friend_db.get(evt.fid).name}!').wait_for_completed()
+
+    def _robot_on_face_move_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+        asyncio.ensure_future(self._robot_on_face_move(robot, evt))
 
     # noinspection PyUnresolvedReferences
-    def _robot_on_face_move(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_move(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
         print(f'face {evt.fid} move: {evt.x} {evt.y} {evt.width} {evt.height}')
 
 
