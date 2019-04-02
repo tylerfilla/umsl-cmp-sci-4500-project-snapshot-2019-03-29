@@ -38,7 +38,7 @@
 
 namespace py = pybind11;
 
-namespace facelib {
+namespace faces {
 
 /** An image in PIL raw format. */
 struct Image {
@@ -562,36 +562,36 @@ void Recognizer::stop_processor() {
   // TODO: Add a stop condition
 }
 
-} // namespace facelib
+} // namespace faces
 
-PYBIND11_MODULE(facelib, m) {
-  py::class_<facelib::Image>(m, "Image")
+PYBIND11_MODULE(faces, m) {
+  py::class_<faces::Image>(m, "Image")
     .def(py::init<>())
-    .def_readwrite("width", &facelib::Image::width)
-    .def_readwrite("height", &facelib::Image::height)
-    .def_readwrite("bytes", &facelib::Image::bytes);
+    .def_readwrite("width", &faces::Image::width)
+    .def_readwrite("height", &faces::Image::height)
+    .def_readwrite("bytes", &faces::Image::bytes);
 
-  py::class_<facelib::Event>(m, "Event")
+  py::class_<faces::Event>(m, "Event")
     .def(py::init<>())
-    .def_readwrite("fid", &facelib::Event::fid)
-    .def_readwrite("x", &facelib::Event::x)
-    .def_readwrite("y", &facelib::Event::y)
-    .def_readwrite("width", &facelib::Event::width)
-    .def_readwrite("height", &facelib::Event::height);
+    .def_readwrite("fid", &faces::Event::fid)
+    .def_readwrite("x", &faces::Event::x)
+    .def_readwrite("y", &faces::Event::y)
+    .def_readwrite("width", &faces::Event::width)
+    .def_readwrite("height", &faces::Event::height);
 
-  py::class_<facelib::Recognizer>(m, "Recognizer")
+  py::class_<faces::Recognizer>(m, "Recognizer")
     .def(py::init<>())
-    .def("on_face_show", &facelib::Recognizer::on_face_show)
-    .def("on_face_hide", &facelib::Recognizer::on_face_hide)
-    .def("on_face_move", &facelib::Recognizer::on_face_move)
-    .def("poll", &facelib::Recognizer::poll)
-    .def("submit_frame", &facelib::Recognizer::submit_frame)
-    .def("start_processor", &facelib::Recognizer::start_processor)
-    .def("stop_processor", &facelib::Recognizer::stop_processor)
-    .def_readwrite("registry", &facelib::Recognizer::registry);
+    .def("on_face_show", &faces::Recognizer::on_face_show)
+    .def("on_face_hide", &faces::Recognizer::on_face_hide)
+    .def("on_face_move", &faces::Recognizer::on_face_move)
+    .def("poll", &faces::Recognizer::poll)
+    .def("submit_frame", &faces::Recognizer::submit_frame)
+    .def("start_processor", &faces::Recognizer::start_processor)
+    .def("stop_processor", &faces::Recognizer::stop_processor)
+    .def_readwrite("registry", &faces::Recognizer::registry);
 
-  py::class_<facelib::Registry>(m, "Registry")
+  py::class_<faces::Registry>(m, "Registry")
     .def(py::init<>())
-    .def("add_face", &facelib::Registry::add_face)
-    .def("remove_face", &facelib::Registry::remove_face);
+    .def("add_face", &faces::Registry::add_face)
+    .def("remove_face", &faces::Registry::remove_face);
 }

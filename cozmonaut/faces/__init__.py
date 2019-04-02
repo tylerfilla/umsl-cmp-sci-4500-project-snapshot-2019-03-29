@@ -5,4 +5,4 @@
 # InsertLicenseText
 #
 
-from facelib import Event, Image, Recognizer, Registry
+from faces import *

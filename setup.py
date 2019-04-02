@@ -97,10 +97,14 @@ setup(
     description='CS4500 project by team Cozmonauts',
     long_description='Our Cozmo program',  # TODO
     url='/we/need/a/github/repo',  # TODO
-    author='Cozmonauts',  # TODO
+    author='Cozmonauts',
     license=None,  # TODO: Add our license name here
     classifiers=[
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
     packages=find_packages(
@@ -111,8 +115,8 @@ setup(
     ),
     ext_modules=[
         CMakeExtension(
-            name='facelib',
-            cmake_lists_dir='facelib',
+            name='faces',
+            cmake_lists_dir='ext/faces',
         ),
     ],
     install_requires=[

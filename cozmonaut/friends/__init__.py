@@ -5,5 +5,5 @@
 # InsertLicenseText
 #
 
-from .friend import Friend
-from .frienddb import FriendDB
+from .friend import *
+from .frienddb import *

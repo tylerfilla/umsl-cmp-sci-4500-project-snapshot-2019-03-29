@@ -16,11 +16,11 @@ set(BUILD_SHARED_LIBS ON)
 add_subdirectory(third_party/dlib)
 add_subdirectory(third_party/pybind11)
 
-set(facelib_SRC_FILES
+set(faces_SRC_FILES
         src/main.cpp
         )
 
-add_library(facelib SHARED ${facelib_SRC_FILES})
-set_target_properties(facelib PROPERTIES CXX_STANDARD 17)
-target_include_directories(facelib PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(facelib PRIVATE ${PYTHON_LIBRARIES} dlib::dlib pybind11::pybind11)
+add_library(faces SHARED ${faces_SRC_FILES})
+set_target_properties(faces PROPERTIES CXX_STANDARD 17)
+target_include_directories(faces PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(faces PRIVATE ${PYTHON_LIBRARIES} dlib::dlib pybind11::pybind11)
