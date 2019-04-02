@@ -1,6 +1,7 @@
 /*
- * InsertProjectName
- * Copyright (c) 2019 The InsertProjectName Contributors
+ * Cozmonaut
+ * Copyright (c) 2019 The Cozmonaut Contributors
+ *
  * InsertLicenseText
  */
 
