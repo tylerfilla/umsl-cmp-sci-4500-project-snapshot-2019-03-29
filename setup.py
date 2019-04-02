@@ -143,5 +143,3 @@ setup(
         'test': CmdTest,
     },
 )
-
-# TODO: Package up the dlib datafiles as data and use them as resources
