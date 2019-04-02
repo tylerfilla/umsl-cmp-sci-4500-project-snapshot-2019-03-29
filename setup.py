@@ -21,7 +21,7 @@ from cozmonaut import __version__
 class CMakeExtension(Extension):
     """An extension module built with CMake."""
 
-    def __init__(self, name, cmake_lists_dir='.', **kw):
+    def __init__(self, name, cmake_lists_dir, **kw):
         Extension.__init__(self, name, sources=[], **kw)
 
         # Absolute path to the directory holding the CMakeLists.txt file
@@ -109,7 +109,10 @@ setup(
         ],
     ),
     ext_modules=[
-        CMakeExtension('facelib'),
+        CMakeExtension(
+            name='facelib',
+            cmake_lists_dir='facelib',
+        ),
     ],
     install_requires=[
         'docopt',

@@ -16,7 +16,7 @@ add_subdirectory(third_party/dlib)
 add_subdirectory(third_party/pybind11)
 
 set(facelib_SRC_FILES
-        cozmonaut/facelib/facelib.cpp
+        src/main.cpp
         )
 
 add_library(facelib SHARED ${facelib_SRC_FILES})
