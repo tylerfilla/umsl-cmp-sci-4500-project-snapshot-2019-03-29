@@ -6,5 +6,6 @@
 
 from .cli import main
 
+# This runs the CLI when we do "python -m cozmonaut"
 if __name__ == '__main__':
     main()

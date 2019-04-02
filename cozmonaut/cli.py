@@ -28,10 +28,17 @@ from . import __version__
 
 
 def main():
+    """The main function of the command-line interface."""
+
+    # Parse cmdline arguments
+    # This interprets the docstring above for the arguments
     options = docopt(__doc__, version='cozmonaut ' + __version__)
 
     if options['--delete-friend']:
-        task = TaskDeleteFriend(int(options['--delete-friend']))
+        # The friend ID parameter
+        param_id = int(options['--delete-friend'])
+
+        task = TaskDeleteFriend(param_id)
         task.run()
 
     if options['--list-friends']:
@@ -39,5 +46,9 @@ def main():
         task.run()
 
     if options['--run']:
-        task = TaskRun(int(options['--run']))
+        # The Cozmo number parameter
+        # TODO: Will this even be needed?
+        param_num = int(options['--run'])
+
+        task = TaskRun(param_num)
         task.run()

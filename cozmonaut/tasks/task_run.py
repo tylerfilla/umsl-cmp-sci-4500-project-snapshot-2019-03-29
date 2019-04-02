@@ -5,11 +5,11 @@
 #
 
 import asyncio
-import facelib
 import functools
 
 import PIL
 import cozmo
+import facelib
 import speech_recognition
 
 from cozmonaut.friend import FriendDB
