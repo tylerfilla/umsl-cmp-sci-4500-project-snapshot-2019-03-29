@@ -35,9 +35,9 @@ class build_ext_cmake(build_ext):
     def build_extensions(self):
         # Assert that we can actually call CMake
         try:
-            out = subprocess.check_output(['cmake', '--version'])
+            subprocess.check_output(['cmake', '--version'])
         except OSError:
-            raise RuntimeError('Cannot find CMake executable')
+            raise RuntimeError('Unable to execute CMake')
 
         # Iterate all extensions to build
         for ext in self.extensions:
@@ -51,11 +51,11 @@ class build_ext_cmake(build_ext):
 
             # The full name of the extension
             # noinspection PyProtectedMember
-            full_name = ext._full_name
+            ext_name = ext._full_name
 
-            # The file name setuptools wants for the extension DLL
+            # The filename setuptools wants for the extension DLL
             # noinspection PyProtectedMember
-            file_name = ext._file_name
+            ext_file = ext._file_name
 
             # CMake configure and build
             # The library DLL will be put in the temp build directory
@@ -64,16 +64,16 @@ class build_ext_cmake(build_ext):
 
             # The name of the DLL file
             if platform.system() == 'Linux':
-                dll_name = f'lib{full_name}.so'
+                dll_name = f'lib{ext_name}.so'
             elif platform.system() == 'Windows':
-                dll_name = f'{full_name}.dll'
+                dll_name = f'{ext_name}.dll'
             else:
                 raise NotImplementedError(f'Unsupported system: {platform.system()}')
 
             # Copy the DLL from the temp build directory to the lib build directory
             # This is where setuptools wants it to be before installation can proceed
             dll_path_temp = os.path.join(self.build_temp, dll_name)
-            dll_path_lib = os.path.join(self.build_lib, file_name)
+            dll_path_lib = os.path.join(self.build_lib, ext_file)
             shutil.copy(dll_path_temp, dll_path_lib)
 
 
