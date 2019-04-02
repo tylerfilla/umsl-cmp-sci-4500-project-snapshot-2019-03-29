@@ -9,10 +9,9 @@ import functools
 
 import PIL
 import cozmo
-import facelib
 import speech_recognition
 
-from cozmonaut.friend import FriendDB
+from cozmonaut import faces, friends
 
 
 class TaskRun:
@@ -27,23 +26,22 @@ class TaskRun:
         self.speech_recognizer = speech_recognition.Recognizer()
 
         # Create friend database
-        self.friend_db = FriendDB()
+        self.friend_db = friends.FriendDB()
 
         # Add some friends to test with
         # TODO: Load friends from an actual data store (FS or DB)
         # self.friend_db.add(
         #    Friend(
-        #        fid=36,
-        #        name="Tyler",
-        #        photo=PIL.Image.open('me.png'),
+        #        fid=1,
+        #        name='Person',
+        #        photo=PIL.Image.open('person.png'),
         #        when_first_seen=datetime.now(),
         #        when_last_seen=datetime.now(),
         #    )
         # )
 
         # Create facelib face registry
-        # noinspection PyUnresolvedReferences
-        self.face_registry = facelib.Registry()
+        self.face_registry = faces.Registry()
 
         # Go over all friends we know
         # These friends are shared for all the Cozmos
@@ -53,8 +51,7 @@ class TaskRun:
 
             # Add face to face registry
             # We use the friend ID as the face ID (since a human has only one face)
-            # noinspection PyUnresolvedReferences
-            image = facelib.Image()
+            image = faces.Image()
             image.width = friend.photo.getbbox()[2] - friend.photo.getbbox()[0]
             image.height = friend.photo.getbbox()[3] - friend.photo.getbbox()[1]
             image.bytes = friend.photo.tobytes()
@@ -94,9 +91,8 @@ class TaskRun:
         robot.add_event_handler(cozmo.camera.EvtNewRawCameraImage,
                                 functools.partial(TaskRun._robot_on_new_raw_camera_image_cb, self, robot))
 
-        # Make a face recognizer for this robot (see facelib.cpp for impl)
-        # noinspection PyUnresolvedReferences
-        face_recognizer = facelib.Recognizer()
+        # Make a face recognizer for this robot (see main.cpp for impl)
+        face_recognizer = faces.Recognizer()
         face_recognizer.registry = self.face_registry
         face_recognizer.on_face_show(functools.partial(TaskRun._robot_on_face_show_cb, self, robot))
         face_recognizer.on_face_hide(functools.partial(TaskRun._robot_on_face_hide_cb, self, robot))
@@ -131,8 +127,7 @@ class TaskRun:
         pil_frame_bbox = pil_frame.getbbox()
 
         # Convert frame to facelib format
-        # noinspection PyUnresolvedReferences
-        frame = facelib.Image()
+        frame = faces.Image()
         frame.width = pil_frame_bbox[2] - pil_frame_bbox[0]
         frame.height = pil_frame_bbox[3] - pil_frame_bbox[1]
         frame.bytes = pil_frame.tobytes()
@@ -143,11 +138,10 @@ class TaskRun:
         # noinspection PyUnresolvedReferences
         robot.our_stowaway_face_recognizer.submit_frame(frame)
 
-    def _robot_on_face_show_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+    def _robot_on_face_show_cb(self, robot: cozmo.robot.Robot, evt: faces.Event):
         asyncio.ensure_future(self._robot_on_face_show(robot, evt))
 
-    # noinspection PyUnresolvedReferences
-    async def _robot_on_face_show(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_show(self, robot: cozmo.robot.Robot, evt: faces.Event) -> None:
         print(f'face {evt.fid} show: {evt.x} {evt.y} {evt.width} {evt.height}')
 
         if evt.fid == -1:
@@ -171,22 +165,20 @@ class TaskRun:
             # I know you!
             await robot.say_text(f'Hello, {self.friend_db.get(evt.fid).name}!').wait_for_completed()
 
-    def _robot_on_face_hide_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+    def _robot_on_face_hide_cb(self, robot: cozmo.robot.Robot, evt: faces.Event):
         asyncio.ensure_future(self._robot_on_face_hide(robot, evt))
 
-    # noinspection PyUnresolvedReferences
-    async def _robot_on_face_hide(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_hide(self, robot: cozmo.robot.Robot, evt: faces.Event) -> None:
         print(f'face {evt.fid} hide: {evt.x} {evt.y} {evt.width} {evt.height}')
 
         if evt.fid != -1:
             # Goodbye person I know
             await robot.say_text(f'Goodbye, {self.friend_db.get(evt.fid).name}!').wait_for_completed()
 
-    def _robot_on_face_move_cb(self, robot: cozmo.robot.Robot, evt: facelib.Event):
+    def _robot_on_face_move_cb(self, robot: cozmo.robot.Robot, evt: faces.Event):
         asyncio.ensure_future(self._robot_on_face_move(robot, evt))
 
-    # noinspection PyUnresolvedReferences
-    async def _robot_on_face_move(self, robot: cozmo.robot.Robot, evt: facelib.Event) -> None:
+    async def _robot_on_face_move(self, robot: cozmo.robot.Robot, evt: faces.Event) -> None:
         print(f'face {evt.fid} move: {evt.x} {evt.y} {evt.width} {evt.height}')
 
 

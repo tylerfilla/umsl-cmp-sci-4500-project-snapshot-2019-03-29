@@ -3,9 +3,10 @@
 # Copyright (c) 2019 The InsertProjectName Contributors
 # InsertLicenseText
 #
+
 from typing import List
 
-from cozmonaut.friend import Friend
+from cozmonaut.friends import Friend
 
 
 class FriendDB:
