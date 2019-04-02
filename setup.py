@@ -10,7 +10,6 @@ import os
 import platform
 import shutil
 import subprocess
-import sys
 
 from setuptools import Command, find_packages
 from setuptools import setup, Extension
@@ -20,14 +19,19 @@ from cozmonaut import __version__
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sources=[], cmake_lists_dir='.', **kw):
-        Extension.__init__(self, name, sources=sources, **kw)
+    """An extension module built with CMake."""
+
+    def __init__(self, name, cmake_lists_dir='.', **kw):
+        Extension.__init__(self, name, sources=[], **kw)
 
         # Absolute path to the directory holding the CMakeLists.txt file
         self.cmake_lists_dir = os.path.abspath(cmake_lists_dir)
 
 
-class CMakeBuild(build_ext):
+# noinspection PyPep8Naming
+class build_ext_cmake(build_ext):
+    """A setuptools command to build CMakeExtension objects."""
+
     def build_extensions(self):
         # Assert that we can actually call CMake
         try:
@@ -45,6 +49,14 @@ class CMakeBuild(build_ext):
             if not os.path.exists(self.build_lib):
                 os.makedirs(self.build_lib)
 
+            # The full name of the extension
+            # noinspection PyProtectedMember
+            full_name = ext._full_name
+
+            # The file name setuptools wants for the extension DLL
+            # noinspection PyProtectedMember
+            file_name = ext._file_name
+
             # CMake configure and build
             # The library DLL will be put in the temp build directory
             subprocess.check_call(['cmake', ext.cmake_lists_dir], cwd=self.build_temp)
@@ -52,23 +64,21 @@ class CMakeBuild(build_ext):
 
             # The name of the DLL file
             if platform.system() == 'Linux':
-                dll_name=f'lib{ext._full_name}.so'
+                dll_name = f'lib{full_name}.so'
             elif platform.system() == 'Windows':
-                dll_name=f'{ext._full_name}.dll'
+                dll_name = f'{full_name}.dll'
             else:
                 raise NotImplementedError(f'Unsupported system: {platform.system()}')
 
             # Copy the DLL from the temp build directory to the lib build directory
             # This is where setuptools wants it to be before installation can proceed
-            dll_path_temp=os.path.join(self.build_temp, dll_name)
-            dll_path_lib=os.path.join(self.build_lib, ext._file_name)
+            dll_path_temp = os.path.join(self.build_temp, dll_name)
+            dll_path_lib = os.path.join(self.build_lib, file_name)
             shutil.copy(dll_path_temp, dll_path_lib)
 
 
 class CmdTest(Command):
     """Run our tests."""
-    description = 'run tests'
-    user_options = []
 
     def initialize_options(self):
         pass
@@ -81,17 +91,16 @@ class CmdTest(Command):
 
 
 setup(
-    name='cozmonaut',  # TODO: Need a better name?
+    name='cozmonaut',
     version=__version__,
-    description='Our Cozmo program',  # TODO
+    description='CS4500 project by team Cozmonauts',
     long_description='Our Cozmo program',  # TODO
     url='/we/need/a/github/repo',  # TODO
-    author='OurTeamName',  # TODO
-    author_email='OurTeamEmail',  # TODO
+    author='Cozmonauts',  # TODO
     license=None,  # TODO: Add our license name here
     classifiers=[
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.7',
     ],
     packages=find_packages(
         exclude=[
@@ -106,6 +115,8 @@ setup(
         'docopt',
         'numpy',
         'pillow',
+        'pyaudio',
+        'SpeechRecognition',
     ],
     extras_require={
         'test': [
@@ -120,7 +131,7 @@ setup(
         ],
     },
     cmdclass={
-        'build_ext': CMakeBuild,
+        'build_ext': build_ext_cmake,
         'test': CmdTest,
     },
 )
