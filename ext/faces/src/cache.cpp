@@ -14,13 +14,13 @@ void Cache::validate_user_id(int id) {
   // User-given IDs cannot be negative
   // This range is reserved for temporary face IDs
   if (id < 0) {
-    throw std::runtime_error("user-given face IDs cannot be negative");
+    throw std::runtime_error("user-given face ids cannot be negative");
   }
 
   // User-given IDs cannot be zero
   // This ID is used to represent the lack of a face
   if (id == 0) {
-    throw std::runtime_error("user-given face IDs cannot be zero");
+    throw std::runtime_error("user-given face ids cannot be zero");
   }
 }
 

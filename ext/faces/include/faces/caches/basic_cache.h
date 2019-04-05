@@ -37,7 +37,7 @@ public:
 
   BasicCache& operator=(BasicCache&& rhs) = delete;
 
-  void insert(int id, const Encoding& rhs) final;
+  void insert(int id, const Encoding& face) final;
 
   void remove(int id) final;
 
