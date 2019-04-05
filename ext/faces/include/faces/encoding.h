@@ -9,6 +9,8 @@
 #define FACES_ENCODING_H
 
 #include <array>
+#include <limits>
+
 #include <pybind11/pybind11.h>
 
 namespace faces {
@@ -46,12 +48,12 @@ public:
   /**
    * @param p_vector The face vector
    */
-  void set_vector(vector_type&& p_vector) {
+  void set_vector(const vector_type& p_vector) {
     m_vector = p_vector;
   }
 
   /**
-   * Compare this face encoding with another face encoding and return a measure
+   * Compare this face encoding with another face encoding, and return a measure
    * of their dissimilarity. Specifically, this method returns the square of the
    * Euclidean distance between this encoding's vector and the other encoding's
    * vector (aka the magnitude of the vector difference between them).
