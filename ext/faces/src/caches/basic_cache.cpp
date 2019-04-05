@@ -73,8 +73,37 @@ void BasicCache::rename(int id_old, int id_new) {
   impl->m_faces[id_new] = face;
 }
 
-void BasicCache::query() {
-  // TODO: Use a simple linear scan
+const Encoding& BasicCache::retrieve(int id) const {
+  // Look up the face by its ID
+  auto where = impl->m_faces.find(id);
+
+  // If face was not found
+  if (where == impl->m_faces.end()) {
+    throw std::runtime_error("unknown face id");
+  }
+
+  // Copy out the encoding
+  return where->second;
+}
+
+int BasicCache::query(const Encoding& face, double tol) const {
+  // Square the tolerance
+  // By comparing squares, we can avoid costly sqrt(3) calls
+  auto tol_sq = tol * tol;
+
+  // The matched face ID
+  int matched_id = 0;
+
+  // Find the first matching face
+  // If no faces match, then we leave matched_id at zero
+  for (auto&&[id, known] : impl->m_faces) {
+    if (known.compare(face) < tol_sq) {
+      matched_id = id;
+      break;
+    }
+  }
+
+  return matched_id;
 }
 
 } // namespace caches

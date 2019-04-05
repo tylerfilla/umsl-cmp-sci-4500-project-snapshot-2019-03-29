@@ -40,11 +40,21 @@ struct Cache {
   virtual void rename(int id_old, int id_new) = 0;
 
   /**
+   * Retrieve a face from the cache.
+   *
+   * @param id The face ID
+   * @return The face encoding
+   */
+  virtual const Encoding& retrieve(int id) const = 0;
+
+  /**
    * Query a face in the cache.
    *
-   * TODO
+   * @param face The face encoding
+   * @param tol The query tolerance
+   * @return The matched face ID
    */
-  virtual void query() = 0;
+  virtual int query(const Encoding& face, double tol) const = 0;
 
 protected:
   /**
@@ -63,16 +73,19 @@ void bind(Module&& m) {
 
   py::class_<Cache>(m, "Cache")
       .def("insert", [](Cache& self, int id, const Encoding& face) {
-        self.insert(id, face);
+        return self.insert(id, face);
       })
       .def("remove", [](Cache& self, int id) {
-        self.remove(id);
+        return self.remove(id);
       })
       .def("rename", [](Cache& self, int id_old, int id_new) {
-        self.rename(id_old, id_new);
+        return self.rename(id_old, id_new);
       })
-      .def("query", [](Cache& self) {
-        self.query();
+      .def("retrieve", [](Cache& self, int id) {
+        return self.retrieve(id);
+      })
+      .def("query", [](Cache& self, const Encoding& face, double tol) {
+        return self.query(face, tol);
       });
 }
 

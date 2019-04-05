@@ -43,7 +43,9 @@ public:
 
   void rename(int id_old, int id_new) final;
 
-  void query() final;
+  const Encoding& retrieve(int id) const final;
+
+  int query(const Encoding& face, double tol) const final;
 };
 
 namespace basic_cache {
