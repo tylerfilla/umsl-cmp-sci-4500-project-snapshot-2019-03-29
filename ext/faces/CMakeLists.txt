@@ -17,6 +17,7 @@ add_subdirectory(third_party/dlib)
 add_subdirectory(third_party/pybind11)
 
 set(faces_SRC_FILES
+        src/caches/basic_cache.cpp
         src/cache.cpp
         src/encoding.cpp
         src/module.cpp
