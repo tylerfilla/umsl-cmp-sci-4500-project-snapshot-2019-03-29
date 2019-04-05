@@ -13,6 +13,9 @@
 
 namespace faces {
 
+struct Cache;
+struct Source;
+
 struct RecognizerImpl;
 
 /**
@@ -31,6 +34,26 @@ public:
 
   ~Recognizer();
 
+  /**
+   * @return The face cache
+   */
+  Cache* get_cache() const;
+
+  /**
+   * @param p_cache The face cache
+   */
+  void set_cache(Cache* p_cache);
+
+  /**
+   * @return The video source
+   */
+  Source* get_source() const;
+
+  /**
+   * @param p_source The video source
+   */
+  void set_source(Source* p_source);
+
   /** Start continuous recognition. */
   void start();
 
@@ -45,6 +68,7 @@ void bind(Module&& m) {
   namespace py = pybind11;
 
   py::class_<Recognizer>(m, "Recognizer")
+      .def(py::init<>())
       .def("start", &Recognizer::start)
       .def("stop", &Recognizer::stop);
 }
