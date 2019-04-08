@@ -9,9 +9,9 @@
 #define FACES_ENCODING_H
 
 #include <array>
-#include <limits>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 namespace faces {
 

@@ -11,13 +11,12 @@ project(cozmonaut)
 find_package(PythonInterp 3.7 REQUIRED)
 find_package(PythonLibs 3.7 REQUIRED)
 
-set(BUILD_SHARED_LIBS ON)
-
-add_subdirectory(third_party/dlib)
 add_subdirectory(third_party/pybind11)
+add_subdirectory(third_party/spdyface)
 
 set(faces_SRC_FILES
         src/caches/basic_cache.cpp
+        src/sources/pil_source.cpp
         src/cache.cpp
         src/encoding.cpp
         src/module.cpp
@@ -27,4 +26,4 @@ set(faces_SRC_FILES
 add_library(faces SHARED ${faces_SRC_FILES})
 set_target_properties(faces PROPERTIES CXX_STANDARD 17)
 target_include_directories(faces PRIVATE include ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(faces PRIVATE ${PYTHON_LIBRARIES} dlib::dlib pybind11::pybind11)
+target_link_libraries(faces PRIVATE ${PYTHON_LIBRARIES} pybind11::pybind11 spdyface)

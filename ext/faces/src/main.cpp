@@ -124,7 +124,7 @@ class Registry {
 
   using face_recognizer_type = dlib::loss_metric<dlib::fc_no_bias<128, dlib::avg_pool_everything<alevel0<alevel1<alevel2
       <alevel3<alevel4<dlib::max_pool<3, 3, 2, 2, dlib::relu<dlib::affine<dlib::con<32, 7, 7, 2, 2,
-      dlib::input_rgb_image_sized<150>>>>>>>>>>>>>;
+          dlib::input_rgb_image_sized<150>>>>>>>>>>>>>;
 
   /** The type of encoded faces. */
   using face_encoding_type = dlib::matrix<double, 0, 1>;

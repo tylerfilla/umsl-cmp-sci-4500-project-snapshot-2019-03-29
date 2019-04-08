@@ -32,7 +32,15 @@ class Recognizer {
 public:
   Recognizer();
 
+  Recognizer(const Recognizer& rhs) = delete;
+
+  Recognizer(Recognizer&& rhs) = delete;
+
   ~Recognizer();
+
+  Recognizer& operator=(const Recognizer& rhs) = delete;
+
+  Recognizer& operator=(Recognizer&& rhs) = delete;
 
   /**
    * @return The face cache
@@ -69,6 +77,8 @@ void bind(Module&& m) {
 
   py::class_<Recognizer>(m, "Recognizer")
       .def(py::init<>())
+      .def_property("cache", &Recognizer::get_cache, &Recognizer::set_cache)
+      .def_property("source", &Recognizer::get_source, &Recognizer::set_source)
       .def("start", &Recognizer::start)
       .def("stop", &Recognizer::stop);
 }
