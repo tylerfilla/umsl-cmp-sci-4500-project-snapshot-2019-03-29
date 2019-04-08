@@ -9,6 +9,7 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include <faces/encoding.h>
 #include <faces/recognizer.h>
@@ -50,6 +51,15 @@ struct RecognizerImpl {
 
   /** Mutex for interfacing with the continuous recognition thread. */
   std::mutex m_crt_mutex;
+
+  /** All registered face appearance callbacks. */
+  std::vector<Recognizer::CbFaceAppear> m_cbs_face_appear;
+
+  /** All registered face disappearance callbacks. */
+  std::vector<Recognizer::CbFaceDisappear> m_cbs_face_disappear;
+
+  /** All registered face movement callbacks. */
+  std::vector<Recognizer::CbFaceMove> m_cbs_face_move;
 
   /** The face cache. */
   Cache* m_cache;
@@ -200,6 +210,30 @@ void Recognizer::set_source(Source* p_source) {
   std::lock_guard lock(impl->m_crt_mutex);
 
   impl->m_source = p_source;
+}
+
+void Recognizer::register_face_appear(CbFaceAppear cb) {
+  // Lock the interface mutex
+  std::lock_guard lock(impl->m_crt_mutex);
+
+  // Save the callback
+  impl->m_cbs_face_appear.push_back(cb);
+}
+
+void Recognizer::register_face_disappear(CbFaceDisappear cb) {
+  // Lock the interface mutex
+  std::lock_guard lock(impl->m_crt_mutex);
+
+  // Save the callback
+  impl->m_cbs_face_disappear.push_back(cb);
+}
+
+void Recognizer::register_face_move(CbFaceDisappear cb) {
+  // Lock the interface mutex
+  std::lock_guard lock(impl->m_crt_mutex);
+
+  // Save the callback
+  impl->m_cbs_face_move.push_back(cb);
 }
 
 void Recognizer::start() {

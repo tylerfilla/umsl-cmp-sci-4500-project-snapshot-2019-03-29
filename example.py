@@ -8,6 +8,21 @@ import cv2
 from PIL import Image
 
 
+def on_face_appear(fid: int, bounds: tuple, enc: tuple):
+    """Called when the recognizer notices a new face."""
+    print(f'appear: {fid} at {bounds} with {len(enc)}')
+
+
+def on_face_disappear(fid: int, bounds: tuple, enc: tuple):
+    """Called when the recognizer loses track of a face."""
+    print(f'disappear: {fid} at {bounds}')
+
+
+def on_face_move(fid: int, bounds: tuple, enc: tuple):
+    """Called when a tracked face moves on camera."""
+    print(f'move: {fid} at {bounds}')
+
+
 def main():
     # Open the camera
     cap = cv2.VideoCapture(0)
@@ -27,6 +42,11 @@ def main():
     rec = faces.Recognizer()
     rec.cache = cache
     rec.source = source
+
+    # Register for face event callbacks
+    rec.register_face_appear(on_face_appear)
+    rec.register_face_disappear(on_face_disappear)
+    rec.register_face_move(on_face_move)
 
     # Start recognition
     rec.start()
