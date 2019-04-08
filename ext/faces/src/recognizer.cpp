@@ -10,6 +10,7 @@
 #include <mutex>
 #include <thread>
 
+#include <faces/encoding.h>
 #include <faces/recognizer.h>
 #include <faces/source.h>
 
@@ -129,7 +130,7 @@ void RecognizerImpl::crt_loop() {
   std::lock_guard lock(m_crt_mutex);
 
   // Receive the next frame
-  // Time out after one hundred milliseconds
+  // Time out after one hundred milliseconds (TODO: Extract this)
   auto frame = m_source->wait(100);
 
   // If no frame was received, stop the iteration
@@ -141,11 +142,19 @@ void RecognizerImpl::crt_loop() {
   // Move frame into view
   m_frame = std::move(*frame);
 
-  // Detect one face
-  SFRectangle rect;
-  if (sfDetectOne(m_spdy, (SFImage) m_com_image, &rect)) {
-    std::cout << "face: " << rect.left << ", " << rect.top << ", " << rect.right << ", " << rect.bottom << "\n";
-  }
+  // Detect all faces in the frame
+  sfDetect(m_spdy, (SFImage) m_com_image, [](SFContext ctx, SFImage image, SFRectangle* bounds, void*) {
+    // Embed the face into a 128-dimensional vector encoding
+    std::array<double, 128> vec {};
+    sfEmbed(ctx, image, bounds, vec.data());
+
+    // Construct the libfaces encoding for this face
+    Encoding enc;
+    enc.set_vector(vec);
+
+    std::cout << enc.get_vector().size() << "\n";
+    return 0;
+  }, nullptr);
 }
 
 Recognizer::Recognizer() : impl() {
