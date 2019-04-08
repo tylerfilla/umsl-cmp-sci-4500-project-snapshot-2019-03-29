@@ -6,10 +6,12 @@
  */
 
 #include <atomic>
+#include <iostream>
 #include <mutex>
 #include <thread>
 
 #include <faces/recognizer.h>
+#include <faces/source.h>
 
 namespace faces {
 
@@ -59,8 +61,20 @@ void RecognizerImpl::crt_main() {
 
 void RecognizerImpl::crt_loop() {
   // Lock the interface mutex
-  // This lock is unique, so it may be moved around
-  std::unique_lock lock(m_crt_mutex);
+  // We don't want things changing underneath us
+  std::lock_guard lock(m_crt_mutex);
+
+  // Receive the next frame
+  // Time out after one hundred milliseconds
+  auto frame = m_source->wait(100);
+
+  // If no frame was received, stop the iteration
+  if (!frame) {
+    std::cout << "No frame was received\n";
+    return;
+  }
+
+  std::cout << frame->data.size() << "\n";
 }
 
 Recognizer::Recognizer() : impl() {

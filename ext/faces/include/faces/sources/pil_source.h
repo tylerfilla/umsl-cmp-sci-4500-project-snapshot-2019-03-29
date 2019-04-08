@@ -38,6 +38,8 @@ public:
   PILSource& operator=(PILSource&& rhs) = delete;
 
   void update(const pybind11::object& img) final;
+
+  std::optional<Image> wait(unsigned long millis) final;
 };
 
 namespace pil_source {
