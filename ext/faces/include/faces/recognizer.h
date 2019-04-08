@@ -48,7 +48,7 @@ public:
    * @param id The face ID
    * @param rect The face bounding rectangle
    */
-  using CbFaceDisappear = std::function<void(Recognizer& rec, int id, std::tuple<int, int, int, int> rect)>;
+  using CbFaceDisappear = std::function<void(Recognizer& rec, int id)>;
 
   /**
    * A callback for face movements.
@@ -114,13 +114,16 @@ public:
    *
    * @param cb The callback
    */
-  void register_face_move(CbFaceDisappear cb);
+  void register_face_move(CbFaceMove cb);
 
   /** Start continuous recognition. */
   void start();
 
   /** Stop continuous recognition. */
   void stop();
+
+  /** Poll for event callbacks. */
+  void poll();
 };
 
 namespace recognizer {
@@ -137,7 +140,8 @@ void bind(Module&& m) {
       .def("register_face_disappear", &Recognizer::register_face_disappear)
       .def("register_face_move", &Recognizer::register_face_move)
       .def("start", &Recognizer::start)
-      .def("stop", &Recognizer::stop);
+      .def("stop", &Recognizer::stop)
+      .def("poll", &Recognizer::poll);
 }
 
 } // namespace recognizer

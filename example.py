@@ -8,17 +8,17 @@ import cv2
 from PIL import Image
 
 
-def on_face_appear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
+def on_face_appear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: faces.Encoding):
     """Called when the recognizer notices a new face."""
-    print(f'appear: {fid} at {bounds} with {len(enc)}')
+    print(f'appear: {fid} at {bounds} with {len(enc.vector)}')
 
 
-def on_face_disappear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
+def on_face_disappear(rec: faces.Recognizer, fid: int):
     """Called when the recognizer loses track of a face."""
-    print(f'disappear: {fid} at {bounds}')
+    print(f'disappear: {fid}')
 
 
-def on_face_move(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
+def on_face_move(rec: faces.Recognizer, fid: int, bounds: tuple):
     """Called when a tracked face moves on camera."""
     print(f'move: {fid} at {bounds}')
 
@@ -52,8 +52,14 @@ def main():
     rec.start()
 
     while True:
+        # Poll for face event callbacks
+        rec.poll()
+
         # Read a video frame
         ret, frame = cap.read()
+
+        # Upsample the frame to increase accuracy for smaller faces
+        cv2.pyrUp(frame, frame)
 
         # Convert OpenCV frame from BGR to RGB
         cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

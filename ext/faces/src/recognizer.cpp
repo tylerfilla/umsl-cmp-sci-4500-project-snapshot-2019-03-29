@@ -26,6 +26,9 @@
 namespace faces {
 
 struct RecognizerImpl {
+  /** The recognizer object. */
+  Recognizer& m_recognizer;
+
   /** The spdyface context. */
   SFContext m_spdy;
 
@@ -63,6 +66,15 @@ struct RecognizerImpl {
   /** All registered face movement callbacks. */
   std::vector<Recognizer::CbFaceMove> m_cbs_face_move;
 
+  /** Pending face appearance events. */
+  std::vector<std::tuple<Recognizer&, int, std::tuple<int, int, int, int>, Encoding>> m_evts_face_appear;
+
+  /** Pending face disappearance events. */
+  std::vector<std::tuple<Recognizer&, int>> m_evts_face_disappear;
+
+  /** Pending face movement events. */
+  std::vector<std::tuple<Recognizer&, int, std::tuple<int, int, int, int>>> m_evts_face_move;
+
   /** The face cache. */
   Cache* m_cache;
 
@@ -72,7 +84,7 @@ struct RecognizerImpl {
   /** A map of face IDs to the numbers of frames they've been off screen. */
   std::map<int, int> m_lifetimes;
 
-  RecognizerImpl();
+  explicit RecognizerImpl(Recognizer& p_recognizer);
 
   ~RecognizerImpl();
 
@@ -83,16 +95,24 @@ struct RecognizerImpl {
   void crt_loop();
 };
 
-RecognizerImpl::RecognizerImpl()
-    : m_spdy()
+RecognizerImpl::RecognizerImpl(Recognizer& p_recognizer)
+    : m_recognizer(p_recognizer)
+    , m_spdy()
     , m_detector()
     , m_embedder()
     , m_com_image()
     , m_crt()
     , m_crt_kill(true)
     , m_crt_mutex()
+    , m_cbs_face_appear()
+    , m_cbs_face_disappear()
+    , m_cbs_face_move()
+    , m_evts_face_appear()
+    , m_evts_face_disappear()
+    , m_evts_face_move()
     , m_cache()
-    , m_source() {
+    , m_source()
+    , m_lifetimes() {
   // Create spdyface context
   if (sfCreate(&m_spdy)) {
     std::cerr << "Failed to create spdyface context\n";
@@ -140,19 +160,19 @@ void RecognizerImpl::crt_main() {
 }
 
 void RecognizerImpl::crt_loop() {
-  // Lock the interface mutex
-  // We don't want things changing underneath us
-  std::lock_guard lock(m_crt_mutex);
-
   // Receive the next frame
   // Time out after one hundred milliseconds (TODO: Extract this)
-  auto frame = m_source->wait(100);
+  auto frame = m_source->wait(100); // Need to lock m_source
 
   // If no frame was received, stop the iteration
   if (!frame) {
 //  std::cout << "No frame was received\n";
     return;
   }
+
+  // Lock the interface mutex
+  // We don't want things changing underneath us
+  std::lock_guard lock(m_crt_mutex);
 
   // Move frame into view
   m_frame = std::move(*frame);
@@ -193,7 +213,13 @@ void RecognizerImpl::crt_loop() {
 
     // If no lifetime exists for this face
     if (lifetime_it == impl->m_lifetimes.end()) {
-      std::cout << "Welcome " << id << "\n";
+      // Enqueue an appearance event
+      impl->m_evts_face_appear.emplace_back(impl->m_recognizer, id,
+          std::tuple {bounds->left, bounds->top, bounds->right, bounds->bottom}, enc);
+    } else {
+      // Enqueue a movement event
+      impl->m_evts_face_move.emplace_back(impl->m_recognizer, id,
+          std::tuple {bounds->left, bounds->top, bounds->right, bounds->bottom});
     }
 
     // Reset the lifetime of the face
@@ -216,12 +242,13 @@ void RecognizerImpl::crt_loop() {
   for (auto&& id : stale_tracks) {
     m_lifetimes.erase(id);
 
-    std::cout << "Goodbye " << id << "\n";
+    // Enqueue a disappearance event
+    m_evts_face_disappear.emplace_back(m_recognizer, id);
   }
 }
 
 Recognizer::Recognizer() : impl() {
-  impl = std::make_unique<RecognizerImpl>();
+  impl = std::make_unique<RecognizerImpl>(*this);
 }
 
 Recognizer::~Recognizer() {
@@ -281,7 +308,7 @@ void Recognizer::register_face_disappear(CbFaceDisappear cb) {
   impl->m_cbs_face_disappear.push_back(cb);
 }
 
-void Recognizer::register_face_move(CbFaceDisappear cb) {
+void Recognizer::register_face_move(CbFaceMove cb) {
   // Lock the interface mutex
   std::lock_guard lock(impl->m_crt_mutex);
 
@@ -311,6 +338,32 @@ void Recognizer::stop() {
   // Trigger the kill switch and wait for the continuous recognition thread to die
   impl->m_crt_kill.clear();
   impl->m_crt.join();
+}
+
+void Recognizer::poll() {
+  // Lock the interface mutex
+  std::lock_guard lock(impl->m_crt_mutex);
+
+  // Generic event dispatcher algorithm
+  auto dispatch = [](auto& evts, const auto& cbs) -> void {
+    // For each pending event
+    for (auto& evt : evts) {
+      // For each receiving callback
+      for (auto& cb : cbs) {
+        // Send the event to the callback
+        // The events here are std::tuple objects with callback arguments
+        std::apply(cb, evt);
+      }
+    }
+
+    // Clear all pending events
+    evts.clear();
+  };
+
+  // Dispatch all three kinds of events
+  dispatch(impl->m_evts_face_appear, impl->m_cbs_face_appear);
+  dispatch(impl->m_evts_face_disappear, impl->m_cbs_face_disappear);
+  dispatch(impl->m_evts_face_move, impl->m_cbs_face_move);
 }
 
 } // namespace faces
