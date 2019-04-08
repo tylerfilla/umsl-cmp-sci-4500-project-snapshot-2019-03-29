@@ -345,14 +345,18 @@ void Recognizer::poll() {
   std::lock_guard lock(impl->m_crt_mutex);
 
   // Generic event dispatcher algorithm
-  auto dispatch = [](auto& evts, const auto& cbs) -> void {
+  auto dispatch = [&](auto& evts, const auto& cbs) -> void {
     // For each pending event
     for (auto& evt : evts) {
       // For each receiving callback
       for (auto& cb : cbs) {
+        impl->m_crt_mutex.unlock();
+
         // Send the event to the callback
         // The events here are std::tuple objects with callback arguments
         std::apply(cb, evt);
+
+        impl->m_crt_mutex.lock();
       }
     }
 

@@ -7,20 +7,42 @@ import faces
 import cv2
 from PIL import Image
 
+counter = 1
+rectangles = {}
 
 def on_face_appear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: faces.Encoding):
     """Called when the recognizer notices a new face."""
-    print(f'appear: {fid} at {bounds} with {len(enc.vector)}')
+
+    global counter
+    global rectangles
+
+    rectangles[fid] = bounds
+
+    if fid < 0:
+        print(f"I've never seen you before! I'll call you {counter}...")
+        rec.cache.rename(fid, counter)
+        counter = counter + 1
+    elif fid > 0:
+        print(f"Hello again {fid}!")
 
 
 def on_face_disappear(rec: faces.Recognizer, fid: int):
     """Called when the recognizer loses track of a face."""
+
+    global rectangles
+
     print(f'disappear: {fid}')
+
+    del rectangles[fid]
 
 
 def on_face_move(rec: faces.Recognizer, fid: int, bounds: tuple):
     """Called when a tracked face moves on camera."""
+
+    global rectangles
+
     print(f'move: {fid} at {bounds}')
+    rectangles[fid] = bounds
 
 
 def main():
@@ -33,7 +55,6 @@ def main():
 
     # Set up the face cache
     cache: faces.Cache = faces.caches.BasicCache()
-    cache.insert(1, face1)
 
     # Set up the video source
     source: faces.Source = faces.sources.PILSource()
@@ -52,14 +73,8 @@ def main():
     rec.start()
 
     while True:
-        # Poll for face event callbacks
-        rec.poll()
-
         # Read a video frame
         ret, frame = cap.read()
-
-        # Upsample the frame to increase accuracy for smaller faces
-        cv2.pyrUp(frame, frame)
 
         # Convert OpenCV frame from BGR to RGB
         cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -69,6 +84,22 @@ def main():
 
         # Send PIL image off for processing
         source.update(frame_pil)
+
+        # Poll for face event callbacks
+        rec.poll()
+
+        # Draw face rectangles
+        for id in rectangles:
+            # The rectangle for this face
+            rect = rectangles[id]
+
+            # Generate a random(-ish) color for this ID
+            # This is not cryptographically-secure...
+            color = ((id * 2334643 + 1) % 256, (id * 133643 + 1) % 256, (id * 165451 + 1) % 256)
+
+            # Draw the rectangle
+            # It may be a few frames old, but that *is* the point of asynchronous face recognition
+            cv2.rectangle(frame, (rect[0], rect[1]), (rect[2], rect[3]), color, thickness=3)
 
         # Show the frame
         cv2.imshow("Output", frame)
