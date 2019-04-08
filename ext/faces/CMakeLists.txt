@@ -8,6 +8,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(cozmonaut)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 find_package(PythonInterp 3.7 REQUIRED)
 find_package(PythonLibs 3.7 REQUIRED)
 
@@ -18,6 +20,7 @@ set(faces_SRC_FILES
         src/caches/basic_cache.cpp
         src/sources/pil_source.cpp
         src/cache.cpp
+        src/common_image.cpp
         src/encoding.cpp
         src/module.cpp
         src/recognizer.cpp

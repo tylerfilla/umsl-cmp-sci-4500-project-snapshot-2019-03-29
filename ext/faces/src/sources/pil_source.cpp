@@ -69,7 +69,7 @@ void PILSource::update(const py::object& img) {
 
     // If an unread frame is still present
     if (impl->m_present) {
-      std::cout << "dropping a frame\n";
+//    std::cout << "dropping a frame\n";
     }
 
     // Move new frame over old frame

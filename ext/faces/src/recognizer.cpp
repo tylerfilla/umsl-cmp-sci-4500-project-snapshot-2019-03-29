@@ -13,9 +13,34 @@
 #include <faces/recognizer.h>
 #include <faces/source.h>
 
+#include <spdyface.h>
+#include <spdyface/dlib_ffd_detector.h>
+#include <spdyface/dlib_v1_embedder.h>
+
+#include "common_image.h"
+
 namespace faces {
 
 struct RecognizerImpl {
+  /** The spdyface context. */
+  SFContext m_spdy;
+
+  /** The face detector. */
+  SFDlibFFDDetector m_detector;
+
+  /** The face embedder. */
+  SFDlibV1Embedder m_embedder;
+
+  /** The last video frame received. */
+  Image m_frame;
+
+  /**
+   * The spdyface common image view. The phrase "common image" is specific to
+   * cozmonaut. It preserves the binary format of raw images in Python's PIL
+   * (Python Image Library), which is used by the Cozmo SDK.
+   */
+  SFCommonImage m_com_image;
+
   /** The continuous recognition thread. */
   std::thread m_crt;
 
@@ -33,6 +58,8 @@ struct RecognizerImpl {
 
   RecognizerImpl();
 
+  ~RecognizerImpl();
+
   /** Main function for the continuous recognition thread. */
   void crt_main();
 
@@ -41,11 +68,48 @@ struct RecognizerImpl {
 };
 
 RecognizerImpl::RecognizerImpl()
-    : m_crt()
+    : m_spdy()
+    , m_detector()
+    , m_embedder()
+    , m_com_image()
+    , m_crt()
     , m_crt_kill(true)
     , m_crt_mutex()
     , m_cache()
     , m_source() {
+  // Create spdyface context
+  if (sfCreate(&m_spdy)) {
+    std::cerr << "Failed to create spdyface context\n";
+    return;
+  }
+
+  // Create face detector
+  if (sfDlibFFDDetectorCreate(&m_detector)) {
+    std::cerr << "Failed to create face detector\n";
+    return;
+  }
+  sfUseDetector(m_spdy, (SFDetector) m_detector);
+
+  // Create face embedder
+  if (sfDlibV1EmbedderCreate(&m_embedder)) {
+    std::cerr << "Failed to create face embedder\n";
+    return;
+  }
+  sfUseEmbedder(m_spdy, (SFEmbedder) m_embedder);
+
+  // Create common image view
+  if (sfCommonImageCreate(&m_com_image, m_frame)) {
+    std::cerr << "Failed to create common image\n";
+    return;
+  }
+}
+
+RecognizerImpl::~RecognizerImpl() {
+  // Clean up spdyface things
+  sfCommonImageDestroy(m_com_image);
+  sfDlibFFDDetectorDestroy(m_detector);
+  sfDlibV1EmbedderDestroy(m_embedder);
+  sfDestroy(m_spdy);
 }
 
 void RecognizerImpl::crt_main() {
@@ -70,11 +134,18 @@ void RecognizerImpl::crt_loop() {
 
   // If no frame was received, stop the iteration
   if (!frame) {
-    std::cout << "No frame was received\n";
+//  std::cout << "No frame was received\n";
     return;
   }
 
-  std::cout << frame->data.size() << "\n";
+  // Move frame into view
+  m_frame = std::move(*frame);
+
+  // Detect one face
+  SFRectangle rect;
+  if (sfDetectOne(m_spdy, (SFImage) m_com_image, &rect)) {
+    std::cout << "face: " << rect.left << ", " << rect.top << ", " << rect.right << ", " << rect.bottom << "\n";
+  }
 }
 
 Recognizer::Recognizer() : impl() {
