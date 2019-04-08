@@ -40,7 +40,7 @@ public:
    * @param rect The face bounding rectangle
    * @param enc The face encoding
    */
-  using CbFaceAppear = std::function<void(int id, std::tuple<int, int, int, int> rect, Encoding& enc)>;
+  using CbFaceAppear = std::function<void(Recognizer& rec, int id, std::tuple<int, int, int, int> rect, Encoding& enc)>;
 
   /**
    * A callback for face disappearances.
@@ -48,7 +48,7 @@ public:
    * @param id The face ID
    * @param rect The face bounding rectangle
    */
-  using CbFaceDisappear = std::function<void(int id, std::tuple<int, int, int, int> rect)>;
+  using CbFaceDisappear = std::function<void(Recognizer& rec, int id, std::tuple<int, int, int, int> rect)>;
 
   /**
    * A callback for face movements.
@@ -56,7 +56,7 @@ public:
    * @param id The face ID
    * @param rect The face bounding rectangle
    */
-  using CbFaceMove = std::function<void(int id, std::tuple<int, int, int, int> rect)>;
+  using CbFaceMove = std::function<void(Recognizer& rec, int id, std::tuple<int, int, int, int> rect)>;
 
 private:
   /** PImpl. */

@@ -8,17 +8,17 @@ import cv2
 from PIL import Image
 
 
-def on_face_appear(fid: int, bounds: tuple, enc: tuple):
+def on_face_appear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
     """Called when the recognizer notices a new face."""
     print(f'appear: {fid} at {bounds} with {len(enc)}')
 
 
-def on_face_disappear(fid: int, bounds: tuple, enc: tuple):
+def on_face_disappear(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
     """Called when the recognizer loses track of a face."""
     print(f'disappear: {fid} at {bounds}')
 
 
-def on_face_move(fid: int, bounds: tuple, enc: tuple):
+def on_face_move(rec: faces.Recognizer, fid: int, bounds: tuple, enc: tuple):
     """Called when a tracked face moves on camera."""
     print(f'move: {fid} at {bounds}')
 

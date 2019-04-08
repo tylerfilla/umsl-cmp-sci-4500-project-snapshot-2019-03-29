@@ -39,6 +39,8 @@ public:
 
   void insert(int id, const Encoding& face) final;
 
+  int insert_unknown(const Encoding& face) final;
+
   void remove(int id) final;
 
   void rename(int id_old, int id_new) final;

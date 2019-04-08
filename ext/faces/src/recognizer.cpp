@@ -7,10 +7,12 @@
 
 #include <atomic>
 #include <iostream>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <vector>
 
+#include <faces/cache.h>
 #include <faces/encoding.h>
 #include <faces/recognizer.h>
 #include <faces/source.h>
@@ -66,6 +68,9 @@ struct RecognizerImpl {
 
   /** The video source. */
   Source* m_source;
+
+  /** A map of face IDs to the numbers of frames they've been off screen. */
+  std::map<int, int> m_lifetimes;
 
   RecognizerImpl();
 
@@ -153,7 +158,10 @@ void RecognizerImpl::crt_loop() {
   m_frame = std::move(*frame);
 
   // Detect all faces in the frame
-  sfDetect(m_spdy, (SFImage) m_com_image, [](SFContext ctx, SFImage image, SFRectangle* bounds, void*) {
+  sfDetect(m_spdy, (SFImage) m_com_image, [](SFContext ctx, SFImage image, SFRectangle* bounds, void* user) {
+    // Recover pointer to implementation struct
+    auto impl = static_cast<RecognizerImpl*>(user);
+
     // Embed the face into a 128-dimensional vector encoding
     std::array<double, 128> vec {};
     sfEmbed(ctx, image, bounds, vec.data());
@@ -162,9 +170,54 @@ void RecognizerImpl::crt_loop() {
     Encoding enc;
     enc.set_vector(vec);
 
-    std::cout << enc.get_vector().size() << "\n";
+    // Query for the face in the cache with a tolerance of 0.6 (TODO: Extract this)
+    int id = impl->m_cache->query(enc, 0.6);
+
+    // If the queried returned zero, ...
+    if (id == 0) {
+      // ...then there was a cache miss
+      // THIS IS A NEVER-BEFORE-SEEN FACE
+
+      // Insert the face into the cache with an unspecified ID
+      // The cache will pick an ID to its liking and return it
+      // We know for a fact (by our definition) that the ID will be negative
+      // Negative IDs represent faces that the user hasn't specified explicitly
+      // When the user loads up faces into the cache, they must use positive IDs
+      // Our code, being above the law, can then use negative IDs for its own purposes
+      id = impl->m_cache->insert_unknown(enc);
+    }
+
+    // Try to find the lifetime for this face
+    // FIXME: Renames will cause faces to be lost
+    auto lifetime_it = impl->m_lifetimes.find(id);
+
+    // If no lifetime exists for this face
+    if (lifetime_it == impl->m_lifetimes.end()) {
+      std::cout << "Welcome " << id << "\n";
+    }
+
+    // Reset the lifetime of the face
+    impl->m_lifetimes[id] = 15; // TODO: Extract this
+
+    // Returning zero means continue with faces in this frame
+    // Otherwise, nonzero would tell spdyface to stop looking at this frame
     return 0;
-  }, nullptr);
+  }, this);
+
+  // Clean up stale face tracks
+  std::vector<int> stale_tracks;
+  for (auto&&[id, maturity] : m_lifetimes) {
+    // Reduce all tracks' lifetimes by one
+    // If a track's lifetime drops below zero, the track is stale
+    if (--maturity < 0) {
+      stale_tracks.push_back(id);
+    }
+  }
+  for (auto&& id : stale_tracks) {
+    m_lifetimes.erase(id);
+
+    std::cout << "Goodbye " << id << "\n";
+  }
 }
 
 Recognizer::Recognizer() : impl() {

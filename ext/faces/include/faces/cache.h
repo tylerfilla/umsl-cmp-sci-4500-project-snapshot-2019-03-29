@@ -17,12 +17,21 @@ class Encoding;
 /** An abstract face cache. */
 struct Cache {
   /**
-   * Map a new face into the cache.
+   * Map a new known face into the cache.
    *
    * @param id The face ID
    * @param face The face encoding
    */
   virtual void insert(int id, const Encoding& face) = 0;
+
+  /**
+   * Map a new unknown face into the cache. An ID will be assigned to the face
+   * at the cache's sole discretion.
+   *
+   * @param face The face encoding
+   * @return The assigned face ID
+   */
+  virtual int insert_unknown(const Encoding& face) = 0;
 
   /**
    * Remove a face from the cache.

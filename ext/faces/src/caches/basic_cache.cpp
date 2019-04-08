@@ -16,7 +16,17 @@ namespace caches {
 struct BasicCacheImpl {
   /** The face backing store. */
   std::map<int, Encoding> m_faces;
+
+  /** The next face ID for unknown faces. */
+  int m_unknown_id;
+
+  BasicCacheImpl();
 };
+
+BasicCacheImpl::BasicCacheImpl()
+    : m_faces()
+    , m_unknown_id(-1) {
+}
 
 BasicCache::BasicCache() : impl() {
   impl = std::make_unique<BasicCacheImpl>();
@@ -36,6 +46,17 @@ void BasicCache::insert(int id, const Encoding& face) {
 
   // Copy in the new face encoding
   impl->m_faces[id] = face;
+}
+
+int BasicCache::insert_unknown(const faces::Encoding& face) {
+  // Generate a new ID for unknown faces
+  // We shouldn't need to worry about collisions (the user will probably rename, anyway)
+  int id = impl->m_unknown_id--;
+
+  // Copy in the new face encoding
+  impl->m_faces[id] = face;
+
+  return id;
 }
 
 void BasicCache::remove(int id) {
