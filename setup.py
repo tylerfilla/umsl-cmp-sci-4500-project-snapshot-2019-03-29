@@ -29,7 +29,6 @@ class CMakeExtension(Extension):
         self.cmake_lists_dir = os.path.abspath(cmake_lists_dir)
 
 
-# noinspection PyPep8Naming
 class build_ext_cmake(build_ext):
     """A setuptools command to build CMakeExtension objects."""
 
@@ -90,15 +89,20 @@ class CmdTest(Command):
     def run(self):
         subprocess.call(['py.test', '--cov=cozmonaut', '--cov-report=term-missing'])
 
+with open('README.md') as f:
+    readme = f.read()
+
+with open('LICENSE') as f:
+    license = f.read()
 
 setup(
     name='cozmonaut',
     version=__version__,
     description='CS4500 project by team Cozmonauts',
-    long_description='Our Cozmo program',  # TODO
-    url='/we/need/a/github/repo',  # TODO
+    long_description=readme,
+    url='/we/need/a/github/repo',
     author='Cozmonauts',
-    license=None,  # TODO: Add our license name here
+    license=license,
     classifiers=[
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
